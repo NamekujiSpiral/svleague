@@ -3,7 +3,34 @@ body {
     background-color: #f0f2f5;
     color: #333;
     margin: 0;
-    padding: 20px;
+    padding: 0; /* 上下のpaddingを削除 */
+}
+
+.main-header {
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 0 20px;
+    margin-bottom: 20px;
+}
+
+.main-nav ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+}
+
+.main-nav a {
+    display: block;
+    padding: 15px 20px;
+    text-decoration: none;
+    color: #333;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+.main-nav a:hover {
+    background-color: #f0f2f5;
 }
 
 h1, h2 {
@@ -20,12 +47,21 @@ h1, h2 {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-input[type="text"] {
-    width: calc(100% - 80px);
+/* 登録フォームのレイアウト調整 */
+.registration-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.player-name-input {
+    flex-grow: 1; /* 入力欄が伸びるように */
+}
+
+input[type="text"], select {
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 4px;
-    margin-right: 10px;
 }
 
 button {
@@ -49,9 +85,72 @@ ul {
 
 li {
     background-color: #e8eaf6;
-    padding: 10px;
+    padding: 10px 15px;
     margin-bottom: 5px;
     border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    min-height: 30px; /* 編集時の高さの変動を防ぐ */
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-grow: 1;
+}
+
+.player-rank {
+    font-weight: bold;
+    color: #1a237e;
+    min-width: 50px;
+    text-align: center;
+}
+
+.player-name {
+    flex-grow: 1;
+}
+
+.player-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.btn-small {
+    padding: 4px 8px;
+    font-size: 0.85em;
+    border-radius: 3px;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.edit-btn { background-color: #1e88e5; }
+.edit-btn:hover { background-color: #1565c0; }
+
+.delete-btn { background-color: #e53935; }
+.delete-btn:hover { background-color: #c62828; }
+
+.update-btn { background-color: #43a047; }
+.update-btn:hover { background-color: #2e7d32; }
+
+.cancel-btn { background-color: #757575; }
+.cancel-btn:hover { background-color: #424242; }
+
+/* 編集モードの入力欄のスタイル */
+.player-info .edit-name-input,
+.player-info .edit-rank-select {
+    padding: 6px;
+    border: 1px solid #9fa8da;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+.player-info .edit-name-input {
+    flex-grow: 1;
 }
 
 .button-link {

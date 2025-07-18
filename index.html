@@ -7,16 +7,31 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <h1>ゲーム大会トップ</h1>
+    <header class="main-header">
+        <nav class="main-nav">
+            <ul>
+                <li><a href="tournament/">トーナメント</a></li>
+            </ul>
+        </nav>
+    </header>
 
     <div class="container">
-        <a href="tournament/" class="button-link">トーナメントを開始する</a>
+        <h1>プレイヤー管理</h1>
     </div>
 
     <div class="container">
         <h2>プレイヤー登録</h2>
-        <input type="text" id="playerName" placeholder="プレイヤー名を入力">
-        <button id="registerButton">登録</button>
+        <div class="registration-form">
+            <input type="text" id="playerName" placeholder="プレイヤー名を入力" class="player-name-input">
+            <select id="playerRank">
+                <option value="None">ランクなし</option>
+                <option value="S">S</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+            </select>
+            <button id="registerButton">登録</button>
+        </div>
     </div>
 
     <div class="container">
