@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ゲーム大会トップ</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <h1>ゲーム大会トップ</h1>
+
+    <div class="container">
+        <a href="tournament/" class="button-link">トーナメントを開始する</a>
+    </div>
+
+    <div class="container">
+        <h2>プレイヤー登録</h2>
+        <input type="text" id="playerName" placeholder="プレイヤー名を入力">
+        <button id="registerButton">登録</button>
+    </div>
+
+    <div class="container">
+        <h2>登録済みプレイヤー</h2>
+        <ul id="playerList">
+            <!-- 登録されたプレイヤーがここに表示されます -->
+        </ul>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="js/firebase-config.js"></script>
+
+    <script src="js/player-registration.js"></script>
+</body>
+</html>
