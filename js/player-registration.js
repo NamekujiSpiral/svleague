@@ -189,6 +189,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // プレイヤー登録フォームのコンテナ
     const playerRegistrationFormContainer = document.getElementById('playerRegistrationFormContainer');
 
+    // ハンバーガーメニュー関連の要素
+    const hamburgerMenu = document.getElementById('hamburgerMenu');
+    const navLinks = document.getElementById('navLinks');
+
     // ログアウトボタンのクリックイベント
     if (logoutButton) {
         logoutButton.addEventListener('click', () => {
@@ -239,6 +243,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('ログインエラー:', error.code, error.message);
                     loginError.textContent = 'ログイン失敗: ' + error.message;
                 });
+        });
+    }
+
+    // ハンバーガーメニューのクリックイベント
+    if (hamburgerMenu) {
+        hamburgerMenu.addEventListener('click', () => {
+            navLinks.classList.toggle('open');
+            hamburgerMenu.classList.toggle('open');
         });
     }
 

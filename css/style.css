@@ -14,6 +14,12 @@ body {
     display: flex; /* 追加 */
     justify-content: space-between; /* 追加 */
     align-items: center; /* 追加 */
+    position: relative; /* ハンバーガーメニューの配置用 */
+}
+
+.main-nav {
+    display: flex;
+    align-items: center;
 }
 
 .main-nav ul {
@@ -33,7 +39,7 @@ body {
 }
 
 .main-nav a:hover {
-    background-color: #f0f2f5;
+    background-color: #e0e0e0;
 }
 
 h1, h2 {
@@ -317,4 +323,88 @@ body.admin-logged-in .player-actions {
     font-weight: bold;
     margin-right: 10px;
     color: #3949ab;
+}
+
+/* ハンバーガーメニューのスタイル */
+.hamburger-menu {
+    display: none; /* デフォルトでは非表示 */
+    width: 30px;
+    height: 25px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    position: relative;
+    z-index: 1000; /* 他の要素より手前に表示 */
+}
+
+.hamburger-menu span {
+    display: block;
+    width: 100%;
+    height: 3px;
+    background-color: #333;
+    border-radius: 2px;
+    position: absolute;
+    left: 0;
+    transition: all 0.3s ease-in-out;
+}
+
+.hamburger-menu span:nth-child(1) { top: 0; }
+.hamburger-menu span:nth-child(2) { top: 11px; }
+.hamburger-menu span:nth-child(3) { top: 22px; }
+
+/* ハンバーガーメニューが開いた時のアニメーション */
+.hamburger-menu.open span:nth-child(1) {
+    transform: rotate(45deg);
+    top: 11px;
+}
+
+.hamburger-menu.open span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-menu.open span:nth-child(3) {
+    transform: rotate(-45deg);
+    top: 11px;
+}
+
+/* モバイルナビゲーションのスタイル */
+.nav-links {
+    display: flex; /* デフォルトはflex (横並び) */
+}
+
+@media (max-width: 768px) {
+    .main-nav .nav-links {
+        display: none; /* 小さい画面では非表示 */
+        flex-direction: column; /* 縦並び */
+        width: 100%;
+        position: absolute;
+        top: 100%; /* ヘッダーのすぐ下に配置 */
+        left: 0;
+        background-color: #fff;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        z-index: 999;
+    }
+
+    .main-nav .nav-links.open {
+        display: flex; /* openクラスが付いたら表示 */
+    }
+
+    .main-nav .nav-links li {
+        width: 100%;
+        border-bottom: 1px solid #eee;
+    }
+
+    .main-nav .nav-links a {
+        padding: 10px 20px;
+        text-align: center;
+    }
+
+    .hamburger-menu {
+        display: block; /* 小さい画面で表示 */
+    }
+
+    .main-nav ul {
+        display: none; /* 通常のナビゲーションを非表示 */
+    }
 }
