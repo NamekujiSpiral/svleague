@@ -172,3 +172,125 @@ function handleCancel(li) {
     const newLi = createPlayerListItem(docId, player);
     li.parentNode.replaceChild(newLi, li);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 認証状態表示とログアウトボタンの処理
+    const authStatusDiv = document.getElementById('authStatus');
+    const logoutButton = document.getElementById('logoutButton');
+
+    // 管理者ログインフォーム関連の要素
+    const adminLoginFormContainer = document.getElementById('adminLoginFormContainer');
+    const showLoginButton = document.getElementById('showLoginButton');
+    const loginEmailInput = document.getElementById('loginEmail');
+    const loginPasswordInput = document.getElementById('loginPassword');
+    const loginButton = document.getElementById('loginButton');
+    const loginError = document.getElementById('loginError');
+
+    // プレイヤー登録フォームのコンテナ
+    const playerRegistrationFormContainer = document.getElementById('playerRegistrationFormContainer');
+
+    // ログアウトボタンのクリックイベント
+    if (logoutButton) {
+        logoutButton.addEventListener('click', () => {
+            firebase.auth().signOut()
+                .then(() => {
+                    console.log("ログアウトしました。");
+                    alert("ログアウトしました。");
+                })
+                .catch((error) => {
+                    console.error("ログアウトエラー:", error.code, error.message);
+                    alert("ログアウトエラー: " + error.message);
+                });
+        });
+    }
+
+    // 管理者ログインボタンのクリックイベント
+    if (showLoginButton) {
+        showLoginButton.addEventListener('click', () => {
+            // フォームの表示/非表示を切り替える
+            if (adminLoginFormContainer.style.display === 'none') {
+                adminLoginFormContainer.style.display = 'block';
+                loginError.textContent = ''; // エラーメッセージをクリア
+            } else {
+                adminLoginFormContainer.style.display = 'none';
+            }
+        });
+    }
+
+    // ログインボタンのクリックイベント
+    if (loginButton) {
+        loginButton.addEventListener('click', () => {
+            const email = loginEmailInput.value;
+            const password = loginPasswordInput.value;
+
+            loginError.textContent = ''; // エラーメッセージをクリア
+
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // ログイン成功
+                    const user = userCredential.user;
+                    console.log('ログイン成功！UID:', user.uid);
+                    alert('ログイン成功！UID: ' + user.uid);
+                    // ログイン成功後、フォームを非表示にする
+                    adminLoginFormContainer.style.display = 'none';
+                })
+                .catch((error) => {
+                    // ログイン失敗
+                    console.error('ログインエラー:', error.code, error.message);
+                    loginError.textContent = 'ログイン失敗: ' + error.message;
+                });
+        });
+    }
+
+    // 認証状態の変更を監視
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+            // ログインしている場合
+            authStatusDiv.textContent = `ログイン中: ${user.email || user.uid}`;
+            logoutButton.style.display = 'inline-block'; // ボタンを表示
+            if (showLoginButton) {
+                showLoginButton.style.display = 'none'; // 管理者ログインボタンを非表示
+            }
+            if (adminLoginFormContainer) {
+                adminLoginFormContainer.style.display = 'none'; // ログインフォームを非表示
+            }
+
+            // FirestoreからユーザーのisAdminステータスを確認
+            db.collection('users').doc(user.uid).get()
+                .then((doc) => {
+                    if (doc.exists && doc.data().isAdmin) {
+                        // 管理者の場合
+                        document.body.classList.add('admin-logged-in');
+                        if (playerRegistrationFormContainer) {
+                            playerRegistrationFormContainer.style.display = 'block'; // 登録フォームを表示
+                        }
+                    } else {
+                        // 管理者ではない場合
+                        document.body.classList.remove('admin-logged-in');
+                        if (playerRegistrationFormContainer) {
+                            playerRegistrationFormContainer.style.display = 'none'; // 登録フォームを非表示
+                        }
+                    }
+                })
+                .catch((error) => {
+                    console.error("isAdminステータス取得エラー:", error);
+                    document.body.classList.remove('admin-logged-in'); // エラー時も非管理者として扱う
+                    if (playerRegistrationFormContainer) {
+                        playerRegistrationFormContainer.style.display = 'none'; // 登録フォームを非表示
+                    }
+                });
+
+        } else {
+            // ログアウトしている場合
+            authStatusDiv.textContent = 'ログアウト中';
+            logoutButton.style.display = 'none'; // ボタンを非表示
+            if (showLoginButton) {
+                showLoginButton.style.display = 'inline-block'; // 管理者ログインボタンを表示
+            }
+            document.body.classList.remove('admin-logged-in'); // 管理者クラスを削除
+            if (playerRegistrationFormContainer) {
+                playerRegistrationFormContainer.style.display = 'none'; // 登録フォームを非表示
+            }
+        }
+    });
+});

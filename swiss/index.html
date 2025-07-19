@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スイスドロー作成</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <h1>スイスドロー作成</h1>
+
+    <div class="container">
+        <h2>参加プレイヤー選択</h2>
+        <div id="player-selection-list">
+            <!-- 登録されたプレイヤーがここに表示されます -->
+        </div>
+        <button id="generate-swiss-button">スイスドローを生成</button>
+    </div>
+
+    <div class="container">
+        <h2>現在のラウンド</h2>
+        <div id="swiss-matches">
+            <!-- スイスドローの試合がここに表示されます -->
+        </div>
+        <button id="next-round-button" style="display: none;">次のラウンドへ</button>
+    </div>
+
+    <div class="container">
+        <h2>順位表</h2>
+        <div id="standings">
+            <!-- 順位表がここに表示されます -->
+        </div>
+    </div>
+
+    <a href="../" class="button-link">トップページに戻る</a>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="../js/firebase-config.js"></script>
+
+    <script src="swiss.js"></script>
+</body>
+</html>

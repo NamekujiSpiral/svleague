@@ -11,17 +11,20 @@
         <nav class="main-nav">
             <ul>
                 <li><a href="tournament/">トーナメント</a></li>
+                <li><a href="league/">リーグ戦</a></li>
+                <li><a href="swiss/">スイスドロー</a></li>
             </ul>
         </nav>
+        <div id="authStatus" style="color: white; margin-right: 10px;"></div>
+        <button id="logoutButton" style="display: none;">ログアウト</button>
+        <button id="showLoginButton" style="margin-left: 10px;">管理者ログイン</button>
     </header>
 
     <div class="container">
         <h1>プレイヤー管理</h1>
     </div>
 
-    <div class="container">
-        <h2>プレイヤー登録</h2>
-        <div class="registration-form">
+    <div class="container" id="playerRegistrationFormContainer">
             <input type="text" id="playerName" placeholder="プレイヤー名を入力" class="player-name-input">
             <select id="playerRank">
                 <option value="None">ランクなし</option>
@@ -41,9 +44,21 @@
         </ul>
     </div>
 
+    <!-- 管理者ログインフォーム (最初は非表示) -->
+    <div id="adminLoginFormContainer" class="container" style="display: none;">
+        <h2>管理者ログイン</h2>
+        <div class="login-form login-form-container">
+            <input type="email" id="loginEmail" placeholder="メールアドレス" required>
+            <input type="password" id="loginPassword" placeholder="パスワード" required>
+            <button id="loginButton">ログイン</button>
+            <p id="loginError" style="color: red;"></p>
+        </div>
+    </div>
+
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
 
     <!-- Firebase Config -->
     <script src="js/firebase-config.js"></script>

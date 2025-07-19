@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>ログイン</h1>
+        <div class="login-form login-form-container">
+            <input type="email" id="loginEmail" placeholder="メールアドレス" required>
+            <input type="password" id="loginPassword" placeholder="パスワード" required>
+            <button id="loginButton">ログイン</button>
+            <p id="loginError" style="color: red;"></p>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="js/firebase-config.js"></script>
+
+    <script>
+        const loginEmailInput = document.getElementById('loginEmail');
+        const loginPasswordInput = document.getElementById('loginPassword');
+        const loginButton = document.getElementById('loginButton');
+        const loginError = document.getElementById('loginError');
+
+        loginButton.addEventListener('click', () => {
+            const email = loginEmailInput.value;
+            const password = loginPasswordInput.value;
+
+            loginError.textContent = ''; // エラーメッセージをクリア
+
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // ログイン成功
+                    const user = userCredential.user;
+                    console.log('ログイン成功！UID:', user.uid);
+                    alert('ログイン成功！UID: ' + user.uid);
+                    // ログイン成功後、メインページにリダイレクト
+                    window.location.href = 'index.html';
+                })
+                .catch((error) => {
+                    // ログイン失敗
+                    console.error('ログインエラー:', error.code, error.message);
+                    loginError.textContent = 'ログイン失敗: ' + error.message;
+                });
+        });
+    </script>
+</body>
+</html>

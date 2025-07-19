@@ -1,0 +1,427 @@
+const playerSelectionList = document.getElementById('player-selection-list');
+const generateSwissButton = document.getElementById('generate-swiss-button');
+const swissMatchesDiv = document.getElementById('swiss-matches');
+const standingsDiv = document.getElementById('standings');
+const nextRoundButton = document.getElementById('next-round-button');
+
+let allPlayers = [];
+let swissState = {
+    players: [], // 参加プレイヤーの勝敗などを管理
+    currentRound: 0,
+    matches: [], // 現在のラウンドの試合
+    matchCounter: 0, // スイスドロー内のマッチカウンター
+    maxRounds: 0 // 新しく追加: 最大ラウンド数
+};
+
+// Firestoreからプレイヤーを取得して選択リストを表示
+db.collection('players').orderBy('name', 'asc').get()
+    .then((snapshot) => {
+        allPlayers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        displayPlayerSelection(allPlayers);
+    })
+    .catch(error => {
+        console.error("プレイヤーの読み込みエラー:", error);
+    });
+
+// プレイヤー選択リストの表示
+function displayPlayerSelection(players) {
+    if (!playerSelectionList) {
+        return;
+    }
+    playerSelectionList.innerHTML = '';
+    if (players.length === 0) {
+        playerSelectionList.textContent = "プレイヤーが登録されていません。トップページでプレイヤーを登録してください。";
+        return;
+    }
+    players.forEach(player => {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = player.id;
+        checkbox.value = player.name;
+        checkbox.checked = true;
+
+        const label = document.createElement('label');
+        label.htmlFor = player.id;
+        label.textContent = player.name;
+
+        const div = document.createElement('div');
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        playerSelectionList.appendChild(div);
+    });
+}
+
+// 選択されたプレイヤーを取得
+function getSelectedPlayers() {
+    const selected = [];
+    const checkboxes = playerSelectionList.querySelectorAll('input[type="checkbox"]:checked');
+    checkboxes.forEach(checkbox => {
+        selected.push(checkbox.value);
+    });
+    return selected;
+}
+
+// スイスドロー生成ボタンのクリックイベント
+generateSwissButton.addEventListener('click', () => {
+    const selectedPlayers = getSelectedPlayers();
+    if (selectedPlayers.length < 2) {
+        alert('スイスドローを作成するには、少なくとも2人のプレイヤーを選択してください。');
+        return;
+    }
+    // スイスドローは奇数人数でも開始できるように変更
+    // if (selectedPlayers.length % 2 !== 0) {
+    //     alert('スイスドローは偶数人数のプレイヤーで開始してください。');
+    //     return;
+    // }
+
+    // プレイヤー選択エリアを非表示にする
+    const playerSelectionContainer = document.getElementById('player-selection-list').parentElement;
+    if (playerSelectionContainer) {
+        playerSelectionContainer.style.display = 'none';
+    }
+    generateInitialSwissRound(selectedPlayers);
+});
+
+// Helper to check if player1 has already played player2
+function hasPlayed(player1Obj, player2Name) {
+    return player1Obj.opponents.includes(player2Name);
+}
+
+// 初回スイスドローラウンドの生成
+function generateInitialSwissRound(players) {
+    // プレイヤーの状態を初期化
+    swissState.players = players.map(name => ({
+        name: name,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        points: 0, // 勝利3, 引き分け1, 敗北0
+        opponents: [], // 対戦相手の履歴
+        matchPlayed: false, // そのラウンドで試合をしたか
+        hasBye: false // 不戦勝を経験したか
+    }));
+    swissState.currentRound = 0;
+    swissState.matchCounter = 0;
+
+    // 最大ラウンド数を設定 (例: 参加者数に応じて調整)
+    // ここでは仮に、参加者数4人なら3ラウンド、8人なら4ラウンド、16人なら5ラウンドなど
+    // Math.ceil(Math.log2(players.length)) + 1; // 参加者数が多い場合にラウンド数を増やす
+    swissState.maxRounds = Math.max(3, Math.ceil(Math.log2(players.length)) + 1); // 最低3ラウンド
+
+    generateNextSwissRound();
+}
+
+// 次のスイスドローラウンドを生成
+function generateNextSwissRound() {
+    // 最大ラウンド数に達したら終了
+    if (swissState.currentRound >= swissState.maxRounds) {
+        swissMatchesDiv.innerHTML = `<h3>大会終了！最終順位</h3>`;
+        nextRoundButton.style.display = 'none';
+        updateSwissStandings();
+        return;
+    }
+
+    swissState.currentRound++;
+    swissMatchesDiv.innerHTML = `<h3>ラウンド ${swissState.currentRound}</h3>`;
+    swissState.matches = [];
+    swissState.matchCounter = 0; // ラウンドごとにリセット
+
+    // 1. プレイヤーをポイント順にソート (降順)
+    const sortedPlayers = [...swissState.players].sort((a, b) => b.points - a.points);
+
+    const unpairedPlayers = [...sortedPlayers];
+    const currentRoundMatches = [];
+
+    // 2. 不戦勝の処理 (奇数人数の場合)
+    if (unpairedPlayers.length % 2 !== 0) {
+        // まだ不戦勝になっていない最もポイントの低いプレイヤーを探す
+        let byeCandidateIndex = -1;
+        for (let i = unpairedPlayers.length - 1; i >= 0; i--) {
+            if (!unpairedPlayers[i].hasBye) {
+                byeCandidateIndex = i;
+                break;
+            }
+        }
+
+        let byePlayer;
+        if (byeCandidateIndex !== -1) {
+            byePlayer = unpairedPlayers.splice(byeCandidateIndex, 1)[0];
+        } else {
+            // 全員不戦勝を経験済みの場合、最もポイントの低いプレイヤーに再度不戦勝
+            byePlayer = unpairedPlayers.pop();
+        }
+
+        if (byePlayer) {
+            byePlayer.wins++;
+            byePlayer.points += 3; // 不戦勝で3ポイント
+            byePlayer.hasBye = true; // 不戦勝を経験したとマーク
+            byePlayer.matchPlayed = true; // このラウンドで試合をしたとマーク
+            // console.log(`${byePlayer.name} が不戦勝です。`); // デバッグログ削除
+            // 不戦勝の試合も表示したい場合は、matchオブジェクトを作成してcurrentRoundMatchesに追加
+            swissState.matchCounter++;
+            currentRoundMatches.push({
+                matchNumber: 300 + swissState.matchCounter,
+                player1: byePlayer.name,
+                player2: "不戦勝",
+                winner: byePlayer.name,
+                scores: { player1: '-', player2: '-' },
+                finished: true
+            });
+        }
+    }
+
+    // 3. プレイヤーのペアリング
+    while (unpairedPlayers.length > 0) {
+        const player1 = unpairedPlayers.shift(); // 最もポイントの高い未ペアリングプレイヤー
+
+        let paired = false;
+        // まだ対戦していない相手の中で、最もポイントが近い相手を探す
+        // (ここでは単純にリストの先頭から探す)
+        for (let i = 0; i < unpairedPlayers.length; i++) {
+            const player2 = unpairedPlayers[i];
+
+            if (!hasPlayed(player1, player2.name) && !hasPlayed(player2, player1.name)) {
+                swissState.matchCounter++;
+                const match = {
+                    matchNumber: 300 + swissState.matchCounter,
+                    player1: player1.name,
+                    player2: player2.name,
+                    winner: null,
+                    scores: { player1: 0, player2: 0 },
+                    finished: false
+                };
+                currentRoundMatches.push(match);
+
+                player1.matchPlayed = true;
+                player2.matchPlayed = true;
+
+                unpairedPlayers.splice(i, 1); // player2を未ペアリングリストから削除
+                paired = true;
+                break; // player1のペアリングが完了したので次のplayer1へ
+            }
+        }
+
+        // フォールバック: まだ対戦していない相手が見つからない場合
+        if (!paired && unpairedPlayers.length > 0) {
+            const player2 = unpairedPlayers.shift(); // 次の利用可能なプレイヤーとペアリング
+            swissState.matchCounter++;
+            const match = {
+                matchNumber: 300 + swissState.matchCounter,
+                player1: player1.name,
+                player2: player2.name,
+                winner: null,
+                scores: { player1: 0, player2: 0 },
+                finished: false
+            };
+            currentRoundMatches.push(match);
+
+            player1.matchPlayed = true;
+            player2.matchPlayed = true;
+            // console.warn(`再戦が発生しました: ${player1.name} vs ${player2.name}。より高度なペアリングロジックを検討してください。`); // デバッグログ削除
+        }
+    }
+
+    swissState.matches = currentRoundMatches;
+    displaySwissMatches();
+    updateSwissStandings();
+    nextRoundButton.style.display = 'none'; // 次のラウンドボタンを非表示
+}
+
+// スイスドローの試合を表示
+function displaySwissMatches() {
+    swissMatchesDiv.innerHTML = '';
+    if (swissState.matches.length === 0) {
+        return;
+    }
+    swissState.matches.forEach((match, index) => {
+        const matchDiv = createSwissMatchElement(match, index);
+        swissMatchesDiv.appendChild(matchDiv);
+    });
+}
+
+// スイスドローの試合要素を作成
+function createSwissMatchElement(match, index) {
+    const matchDiv = document.createElement('div');
+    matchDiv.classList.add('match');
+    if (match.finished) {
+        matchDiv.classList.add('match-finished');
+    }
+
+    const playersDiv = document.createElement('div');
+    playersDiv.classList.add('match-players');
+
+    // マッチ番号を表示
+    const matchNumberSpan = document.createElement('span');
+    matchNumberSpan.classList.add('match-number');
+    matchNumberSpan.textContent = `マッチ ${match.matchNumber}: `;
+    playersDiv.appendChild(matchNumberSpan);
+
+    const playerNamesSpan = document.createElement('span');
+    playerNamesSpan.textContent = `${match.player1} vs ${match.player2}`;
+    playersDiv.appendChild(playerNamesSpan);
+
+    const resultDiv = document.createElement('div');
+    resultDiv.classList.add('match-result');
+
+    if (!match.finished) {
+        // スコアコントロールコンテナ
+        const scoreControl1 = document.createElement('div');
+        scoreControl1.classList.add('score-control');
+        const minusBtn1 = document.createElement('button');
+        minusBtn1.textContent = '-';
+        minusBtn1.classList.add('score-btn');
+        const score1Input = document.createElement('input');
+        score1Input.type = 'number';
+        score1Input.min = 0;
+        score1Input.value = 0;
+        score1Input.classList.add('score-input');
+        const plusBtn1 = document.createElement('button');
+        plusBtn1.textContent = '+';
+        plusBtn1.classList.add('score-btn');
+
+        minusBtn1.onclick = () => { score1Input.value = Math.max(0, parseInt(score1Input.value) - 1); };
+        plusBtn1.onclick = () => { score1Input.value = parseInt(score1Input.value) + 1; };
+
+        scoreControl1.appendChild(minusBtn1);
+        scoreControl1.appendChild(score1Input);
+        scoreControl1.appendChild(plusBtn1);
+
+        const scoreControl2 = document.createElement('div');
+        scoreControl2.classList.add('score-control');
+        const minusBtn2 = document.createElement('button');
+        minusBtn2.textContent = '-';
+        minusBtn2.classList.add('score-btn');
+        const score2Input = document.createElement('input');
+        score2Input.type = 'number';
+        score2Input.min = 0;
+        score2Input.value = 0;
+        score2Input.classList.add('score-input');
+        const plusBtn2 = document.createElement('button');
+        plusBtn2.textContent = '+';
+        plusBtn2.classList.add('score-btn');
+
+        minusBtn2.onclick = () => { score2Input.value = Math.max(0, parseInt(score2Input.value) - 1); };
+        plusBtn2.onclick = () => { score2Input.value = parseInt(score2Input.value) + 1; };
+
+        scoreControl2.appendChild(minusBtn2);
+        scoreControl2.appendChild(score2Input);
+        scoreControl2.appendChild(plusBtn2);
+
+        const registerBtn = document.createElement('button');
+        registerBtn.textContent = '結果登録';
+        registerBtn.onclick = () => {
+            const score1 = parseInt(score1Input.value, 10);
+            const score2 = parseInt(score2Input.value, 10);
+            if (score1 === score2) {
+                alert('引き分けはサポートされていません。勝敗を明確にしてください。');
+                return;
+            }
+            const winnerName = score1 > score2 ? match.player1 : match.player2;
+            const loserName = score1 > score2 ? match.player2 : match.player1;
+            recordSwissResult(index, winnerName, loserName, { player1: score1, player2: score2 });
+            
+            // 試合要素を更新
+            const updatedMatchDiv = createSwissMatchElement(swissState.matches[index], index);
+            matchDiv.parentElement.replaceChild(updatedMatchDiv, matchDiv);
+
+            updateSwissStandings(); // 順位表を更新
+            checkSwissRoundCompletion();
+        };
+
+        resultDiv.appendChild(scoreControl1);
+        resultDiv.appendChild(document.createTextNode(' - '));
+        resultDiv.appendChild(scoreControl2);
+        resultDiv.appendChild(registerBtn);
+    } else {
+        resultDiv.textContent = `結果: ${match.scores.player1} - ${match.scores.player2} (${match.winner}の勝利)`;
+    }
+
+    matchDiv.appendChild(playersDiv);
+    matchDiv.appendChild(resultDiv);
+
+    return matchDiv;
+}
+
+// スイスドローの結果を記録
+function recordSwissResult(index, winnerName, loserName, scores) {
+    const match = swissState.matches[index];
+    match.winner = winnerName;
+    match.loser = loserName;
+    match.scores = scores;
+    match.finished = true;
+
+    // プレイヤーの勝敗を更新
+    const winnerPlayer = swissState.players.find(p => p.name === winnerName);
+    const loserPlayer = swissState.players.find(p => p.name === loserName);
+
+    if (winnerPlayer) {
+        winnerPlayer.wins++;
+        winnerPlayer.points += 3;
+        // winnerPlayer.opponents.push(loserName); // ここで追加済み
+    }
+    if (loserPlayer) {
+        loserPlayer.losses++;
+        // loserPlayer.opponents.push(winnerName); // ここで追加済み
+    }
+    // 対戦履歴はペアリング時に追加されるため、ここでは不要
+}
+
+// スイスドローの順位表を更新
+function updateSwissStandings() {
+    // プレイヤーをポイント、勝利数でソート
+    const sortedPlayers = [...swissState.players].sort((a, b) => {
+        if (b.points !== a.points) {
+            return b.points - a.points;
+        }
+        return b.wins - a.wins;
+    });
+
+    // 順位表を表示
+    standingsDiv.innerHTML = '';
+    if (sortedPlayers.length === 0) {
+        return;
+    }
+    const table = document.createElement('table');
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>順位</th>
+                <th>プレイヤー</th>
+                <th>勝</th>
+                <th>敗</th>
+                <th>ポイント</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    `;
+    const tbody = table.querySelector('tbody');
+
+    sortedPlayers.forEach((player, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${player.name}</td>
+            <td>${player.wins}</td>
+            <td>${player.losses}</td>
+            <td>${player.points}</td>
+        `;
+        tbody.appendChild(row);
+    });
+    standingsDiv.appendChild(table);
+}
+
+// ラウンドの全試合が終了したかチェック
+function checkSwissRoundCompletion() {
+    const allMatchesFinished = swissState.matches.every(match => match.finished);
+    if (allMatchesFinished) {
+        nextRoundButton.style.display = 'block'; // 次のラウンドボタンを表示
+    }
+}
+
+// 次のラウンドへボタンのクリックイベント
+nextRoundButton.addEventListener('click', () => {
+    // プレイヤーのmatchPlayedフラグをリセット
+    swissState.players.forEach(p => p.matchPlayed = false);
+    generateNextSwissRound();
+});
