@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抽選</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <h1>抽選</h1>
+
+    <div class="container">
+        <div id="player-selection-list"></div>
+        <button id="pick-winner-button">抽選</button>
+        <div id="winner-display" class="winner" style="display: none;">
+            <h3><span id="result-prefix">結果: </span><span id="winner-name"></span></h3>
+        </div>
+    </div>
+
+    <a href="../" class="button-link">トップページに戻る</a>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="lottery.js"></script>
+</body>
+</html>

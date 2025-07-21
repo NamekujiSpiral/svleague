@@ -240,13 +240,24 @@ li {
     margin-top: 20px;
     padding: 15px;
     background-color: #ffeb3b;
-    text-align: center;
     border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 1.5em; /* h3の高さに合わせる */
+}
+
+.winner-animation {
+    background-color: #e0e0e0; /* 演出中の背景色 */
 }
 
 .winner h3 {
     margin: 0;
     color: #333;
+}
+
+#result-prefix {
+    visibility: hidden;
 }
 
 /* ログインフォームのスタイル */
@@ -336,6 +347,12 @@ body.admin-logged-in .player-actions {
     padding: 0;
     position: relative;
     z-index: 1000; /* 他の要素より手前に表示 */
+    -webkit-tap-highlight-color: transparent; /* タップ時のハイライトを無効化 */
+    outline: none; /* フォーカス時のアウトラインを無効化 */
+}
+
+.hamburger-menu:hover {
+    background-color: transparent;
 }
 
 .hamburger-menu span {
@@ -407,4 +424,30 @@ body.admin-logged-in .player-actions {
     .main-nav ul {
         display: none; /* 通常のナビゲーションを非表示 */
     }
+}
+
+/* 戦績表のスタイル */
+#standings-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+#standings-table th, #standings-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+}
+
+#standings-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+#standings-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+#standings-table tbody tr:hover {
+    background-color: #f1f1f1;
 }

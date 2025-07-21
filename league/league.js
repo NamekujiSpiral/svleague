@@ -202,51 +202,51 @@ function recordLeagueResult(index, winner, loser, scores) {
     match.finished = true;
 }
 
-// 順位表を更新
 function updateStandings() {
     const playerStats = {};
 
     // 全プレイヤーを初期化
     getSelectedPlayers().forEach(player => {
-        playerStats[player] = { wins: 0, losses: 0, points: 0 };
+        playerStats[player] = { games: 0, wins: 0, losses: 0, scoreDiff: 0 };
     });
 
     // 試合結果に基づいて統計を更新
     leagueState.matches.forEach(match => {
         if (match.finished) {
             playerStats[match.winner].wins++;
-            playerStats[match.winner].points += 3; // 勝利で3ポイント
+            playerStats[match.winner].games++;
             playerStats[match.loser].losses++;
+            playerStats[match.loser].games++;
+
+            // 得失点差の計算
+            const winnerScore = match.scores.player1 > match.scores.player2 ? match.scores.player1 : match.scores.player2;
+            const loserScore = match.scores.player1 > match.scores.player2 ? match.scores.player2 : match.scores.player1;
+
+            playerStats[match.winner].scoreDiff += (winnerScore - loserScore);
+            playerStats[match.loser].scoreDiff -= (winnerScore - loserScore);
         }
     });
 
     // 統計をソート
     const sortedPlayers = Object.keys(playerStats).sort((a, b) => {
-        // ポイントでソート
-        if (playerStats[b].points !== playerStats[a].points) {
-            return playerStats[b].points - playerStats[a].points;
-        }
+        const statsA = playerStats[a];
+        const statsB = playerStats[b];
+
         // 勝利数でソート
-        return playerStats[b].wins - playerStats[a].wins;
+        if (statsB.wins !== statsA.wins) {
+            return statsB.wins - statsA.wins;
+        }
+        // 得失点差でソート
+        if (statsB.scoreDiff !== statsA.scoreDiff) {
+            return statsB.scoreDiff - statsA.scoreDiff;
+        }
+        // 敗戦数でソート
+        return statsA.losses - statsB.losses;
     });
 
     // 順位表を表示
-    standingsDiv.innerHTML = '';
-    const table = document.createElement('table');
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th>順位</th>
-                <th>プレイヤー</th>
-                <th>勝</th>
-                <th>敗</th>
-                <th>ポイント</th>
-            </tr>
-        </thead>
-        <tbody>
-        </tbody>
-    `;
-    const tbody = table.querySelector('tbody');
+    const tableBody = document.querySelector('#standings-table tbody');
+    tableBody.innerHTML = '';
 
     sortedPlayers.forEach((player, index) => {
         const stats = playerStats[player];
@@ -254,11 +254,11 @@ function updateStandings() {
         row.innerHTML = `
             <td>${index + 1}</td>
             <td>${player}</td>
+            <td>${stats.games}</td>
             <td>${stats.wins}</td>
             <td>${stats.losses}</td>
-            <td>${stats.points}</td>
+            <td>${stats.scoreDiff}</td>
         `;
-        tbody.appendChild(row);
+        tableBody.appendChild(row);
     });
-    standingsDiv.appendChild(table);
 }
