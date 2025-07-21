@@ -2,6 +2,7 @@ const playerSelectionList = document.getElementById('player-selection-list');
 const generateLeagueButton = document.getElementById('generate-league-button');
 const leagueMatchesDiv = document.getElementById('league-matches');
 const standingsDiv = document.getElementById('standings');
+const groupSelectionDiv = document.getElementById('group-selection');
 
 let allPlayers = [];
 let leagueState = {
@@ -51,6 +52,12 @@ function getSelectedPlayers() {
     return selected;
 }
 
+// 選択されたグループを取得
+function getSelectedGroup() {
+    const selectedRadio = groupSelectionDiv.querySelector('input[name="group"]:checked');
+    return selectedRadio ? selectedRadio.value : '';
+}
+
 // リーグ戦生成ボタンのクリックイベント
 generateLeagueButton.addEventListener('click', () => {
     const selectedPlayers = getSelectedPlayers();
@@ -58,13 +65,14 @@ generateLeagueButton.addEventListener('click', () => {
         alert('リーグ戦を作成するには、少なくとも2人のプレイヤーを選択してください。');
         return;
     }
-    // プレイヤー選択エリアを非表示にする
+    // プレイヤー選択エリアとグループ選択エリアを非表示にする
     document.getElementById('player-selection-list').parentElement.style.display = 'none';
-    generateLeagueMatches(selectedPlayers);
+    groupSelectionDiv.style.display = 'none';
+    generateLeagueMatches(selectedPlayers, getSelectedGroup());
 });
 
 // リーグ戦の組み合わせを生成
-function generateLeagueMatches(players) {
+function generateLeagueMatches(players, group) {
     leagueState.matches = [];
     // リーグ戦内のマッチカウンターをリセット
     leagueState.matchCounter = 0;
@@ -72,8 +80,9 @@ function generateLeagueMatches(players) {
     for (let i = 0; i < players.length; i++) {
         for (let j = i + 1; j < players.length; j++) {
             leagueState.matchCounter++; // マッチ番号をインクリメント
+            const matchNumber = group ? `${group}${leagueState.matchCounter}` : `${leagueState.matchCounter}`;
             leagueState.matches.push({
-                matchNumber: 200 + leagueState.matchCounter, // 200番台のマッチ番号を割り当て
+                matchNumber: matchNumber,
                 player1: players[i],
                 player2: players[j],
                 winner: null,
@@ -109,7 +118,7 @@ function createLeagueMatchElement(match, index) {
     // マッチ番号を表示
     const matchNumberSpan = document.createElement('span');
     matchNumberSpan.classList.add('match-number');
-    matchNumberSpan.textContent = `マッチ ${match.matchNumber}: `; // #を削除
+    matchNumberSpan.textContent = `${match.matchNumber}: `; // #を削除
     playersDiv.appendChild(matchNumberSpan);
 
     const playerNamesSpan = document.createElement('span');

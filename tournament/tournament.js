@@ -1,6 +1,7 @@
 const playerSelectionList = document.getElementById('player-selection-list');
 const generateTournamentButton = document.getElementById('generate-tournament-button');
 const tournamentBracket = document.getElementById('tournament-bracket');
+const groupSelectionDiv = document.getElementById('group-selection');
 
 let allPlayers = [];
 let tournamentState = {
@@ -40,18 +41,6 @@ function displayPlayerSelection(players) {
     });
 }
 
-// トーナメント生成ボタンのクリックイベント
-generateTournamentButton.addEventListener('click', () => {
-    const selectedPlayers = getSelectedPlayers();
-    if (selectedPlayers.length < 2) {
-        alert('トーナメントを作成するには、少なくとも2人のプレイヤーを選択してください。');
-        return;
-    }
-    // プレイヤー選択エリアを非表示にする
-    document.getElementById('player-selection-list').parentElement.style.display = 'none';
-    generateInitialTournament(selectedPlayers);
-});
-
 // 選択されたプレイヤーを取得
 function getSelectedPlayers() {
     const selected = [];
@@ -62,8 +51,27 @@ function getSelectedPlayers() {
     return selected;
 }
 
+// 選択されたグループを取得
+function getSelectedGroup() {
+    const selectedRadio = groupSelectionDiv.querySelector('input[name="group"]:checked');
+    return selectedRadio ? selectedRadio.value : '';
+}
+
+// トーナメント生成ボタンのクリックイベント
+generateTournamentButton.addEventListener('click', () => {
+    const selectedPlayers = getSelectedPlayers();
+    if (selectedPlayers.length < 2) {
+        alert('トーナメントを作成するには、少なくとも2人のプレイヤーを選択してください。');
+        return;
+    }
+    // プレイヤー選択エリアとグループ選択エリアを非表示にする
+    document.getElementById('player-selection-list').parentElement.style.display = 'none';
+    groupSelectionDiv.style.display = 'none';
+    generateInitialTournament(selectedPlayers, getSelectedGroup());
+});
+
 // 初回トーナメント生成
-function generateInitialTournament(players) {
+function generateInitialTournament(players, group) {
     const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
 
     let nextPowerOfTwo = Math.pow(2, Math.ceil(Math.log2(shuffledPlayers.length)));
@@ -77,8 +85,9 @@ function generateInitialTournament(players) {
     const firstRoundMatches = [];
     for (let i = 0; i < shuffledPlayers.length; i += 2) {
         tournamentState.matchCounter++; // マッチ番号をインクリメント
+        const matchNumber = group ? `${group}${tournamentState.matchCounter}` : `${tournamentState.matchCounter}`;
         firstRoundMatches.push({
-            matchNumber: 100 + tournamentState.matchCounter, // 100番台のマッチ番号を割り当て
+            matchNumber: matchNumber,
             player1: shuffledPlayers[i],
             player2: shuffledPlayers[i + 1],
             winner: null,
@@ -135,7 +144,7 @@ function createMatchElement(match, roundIndex, matchIndex) {
     // マッチ番号を表示
     const matchNumberSpan = document.createElement('span');
     matchNumberSpan.classList.add('match-number');
-    matchNumberSpan.textContent = `マッチ ${match.matchNumber}: `; // #を削除
+    matchNumberSpan.textContent = `${match.matchNumber}: `; // #を削除
     playersDiv.appendChild(matchNumberSpan);
 
     // Player 1
@@ -254,7 +263,7 @@ function checkRoundCompletion() {
         const winners = currentRound.matches.map(match => match.winner);
         if (winners.length > 1) {
             // 次のラウンドへ
-            generateNextRound(winners);
+            generateNextRound(winners, getSelectedGroup());
         } else {
             // 優勝者決定
             displayWinner(winners[0]);
@@ -263,12 +272,13 @@ function checkRoundCompletion() {
 }
 
 // 次のラウンドを生成
-function generateNextRound(winners) {
+function generateNextRound(winners, group) {
     const nextRoundMatches = [];
     for (let i = 0; i < winners.length; i += 2) {
         tournamentState.matchCounter++; // マッチ番号をインクリメント
+        const matchNumber = group ? `${group}${tournamentState.matchCounter}` : `${tournamentState.matchCounter}`;
         nextRoundMatches.push({
-            matchNumber: 100 + tournamentState.matchCounter, // 100番台のマッチ番号を割り当て
+            matchNumber: matchNumber,
             player1: winners[i],
             player2: winners[i + 1],
             winner: null,

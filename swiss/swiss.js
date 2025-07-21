@@ -3,6 +3,7 @@ const generateSwissButton = document.getElementById('generate-swiss-button');
 const swissMatchesDiv = document.getElementById('swiss-matches');
 const standingsDiv = document.getElementById('standings');
 const nextRoundButton = document.getElementById('next-round-button');
+const groupSelectionDiv = document.getElementById('group-selection');
 
 let allPlayers = [];
 let swissState = {
@@ -61,6 +62,12 @@ function getSelectedPlayers() {
     return selected;
 }
 
+// 選択されたグループを取得
+function getSelectedGroup() {
+    const selectedRadio = groupSelectionDiv.querySelector('input[name="group"]:checked');
+    return selectedRadio ? selectedRadio.value : '';
+}
+
 // スイスドロー生成ボタンのクリックイベント
 generateSwissButton.addEventListener('click', () => {
     const selectedPlayers = getSelectedPlayers();
@@ -79,7 +86,8 @@ generateSwissButton.addEventListener('click', () => {
     if (playerSelectionContainer) {
         playerSelectionContainer.style.display = 'none';
     }
-    generateInitialSwissRound(selectedPlayers);
+    groupSelectionDiv.style.display = 'none';
+    generateInitialSwissRound(selectedPlayers, getSelectedGroup());
 });
 
 // Helper to check if player1 has already played player2
@@ -88,17 +96,18 @@ function hasPlayed(player1Obj, player2Name) {
 }
 
 // 初回スイスドローラウンドの生成
-function generateInitialSwissRound(players) {
+function generateInitialSwissRound(players, group) {
     // プレイヤーの状態を初期化
     swissState.players = players.map(name => ({
         name: name,
         wins: 0,
         losses: 0,
         draws: 0,
-        points: 0, // 勝利3, 引き分け1, 敗北0
+        points: 0, // 勝利1, 引き分け1, 敗北0
         opponents: [], // 対戦相手の履歴
         matchPlayed: false, // そのラウンドで試合をしたか
-        hasBye: false // 不戦勝を経験したか
+        hasBye: false,
+        games: 0 // 試合数
     }));
     swissState.currentRound = 0;
     swissState.matchCounter = 0;
@@ -108,11 +117,11 @@ function generateInitialSwissRound(players) {
     // Math.ceil(Math.log2(players.length)) + 1; // 参加者数が多い場合にラウンド数を増やす
     swissState.maxRounds = Math.max(3, Math.ceil(Math.log2(players.length)) + 1); // 最低3ラウンド
 
-    generateNextSwissRound();
+    generateNextSwissRound(group);
 }
 
 // 次のスイスドローラウンドを生成
-function generateNextSwissRound() {
+function generateNextSwissRound(group) {
     // 最大ラウンド数に達したら終了
     if (swissState.currentRound >= swissState.maxRounds) {
         swissMatchesDiv.innerHTML = `<h3>大会終了！最終順位</h3>`;
@@ -153,14 +162,16 @@ function generateNextSwissRound() {
 
         if (byePlayer) {
             byePlayer.wins++;
-            byePlayer.points += 3; // 不戦勝で3ポイント
+            byePlayer.points += 1; // 不戦勝で1ポイント
             byePlayer.hasBye = true; // 不戦勝を経験したとマーク
             byePlayer.matchPlayed = true; // このラウンドで試合をしたとマーク
+            byePlayer.games++; // 試合数をインクリメント
             // console.log(`${byePlayer.name} が不戦勝です。`); // デバッグログ削除
             // 不戦勝の試合も表示したい場合は、matchオブジェクトを作成してcurrentRoundMatchesに追加
             swissState.matchCounter++;
+            const matchNumber = group ? `${group}${swissState.matchCounter}` : `${swissState.matchCounter}`;
             currentRoundMatches.push({
-                matchNumber: 300 + swissState.matchCounter,
+                matchNumber: matchNumber,
                 player1: byePlayer.name,
                 player2: "不戦勝",
                 winner: byePlayer.name,
@@ -182,8 +193,9 @@ function generateNextSwissRound() {
 
             if (!hasPlayed(player1, player2.name) && !hasPlayed(player2, player1.name)) {
                 swissState.matchCounter++;
+                const matchNumber = group ? `${group}${swissState.matchCounter}` : `${swissState.matchCounter}`;
                 const match = {
-                    matchNumber: 300 + swissState.matchCounter,
+                    matchNumber: matchNumber,
                     player1: player1.name,
                     player2: player2.name,
                     winner: null,
@@ -253,7 +265,7 @@ function createSwissMatchElement(match, index) {
     // マッチ番号を表示
     const matchNumberSpan = document.createElement('span');
     matchNumberSpan.classList.add('match-number');
-    matchNumberSpan.textContent = `マッチ ${match.matchNumber}: `;
+    matchNumberSpan.textContent = `${match.matchNumber}: `;
     playersDiv.appendChild(matchNumberSpan);
 
     const playerNamesSpan = document.createElement('span');
@@ -356,59 +368,65 @@ function recordSwissResult(index, winnerName, loserName, scores) {
 
     if (winnerPlayer) {
         winnerPlayer.wins++;
-        winnerPlayer.points += 3;
-        // winnerPlayer.opponents.push(loserName); // ここで追加済み
+        winnerPlayer.points += 1;
+        winnerPlayer.games++;
     }
     if (loserPlayer) {
         loserPlayer.losses++;
-        // loserPlayer.opponents.push(winnerName); // ここで追加済み
+        loserPlayer.games++;
     }
-    // 対戦履歴はペアリング時に追加されるため、ここでは不要
 }
 
 // スイスドローの順位表を更新
 function updateSwissStandings() {
-    // プレイヤーをポイント、勝利数でソート
+    
+
+    // プレイヤーをポイント、OMW%、勝利数でソート
     const sortedPlayers = [...swissState.players].sort((a, b) => {
+        // ポイントでソート
         if (b.points !== a.points) {
             return b.points - a.points;
         }
+        // 勝利数でソート (降順)
         return b.wins - a.wins;
     });
 
     // 順位表を表示
-    standingsDiv.innerHTML = '';
+    const tableBody = document.querySelector('#standings-table tbody');
+    tableBody.innerHTML = '';
+
     if (sortedPlayers.length === 0) {
         return;
     }
-    const table = document.createElement('table');
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th>順位</th>
-                <th>プレイヤー</th>
-                <th>勝</th>
-                <th>敗</th>
-                <th>ポイント</th>
-            </tr>
-        </thead>
-        <tbody>
-        </tbody>
-    `;
-    const tbody = table.querySelector('tbody');
 
-    sortedPlayers.forEach((player, index) => {
+    let currentRank = 1;
+    for (let i = 0; i < sortedPlayers.length; i++) {
+        const player = sortedPlayers[i];
         const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${player.name}</td>
-            <td>${player.wins}</td>
-            <td>${player.losses}</td>
-            <td>${player.points}</td>
-        `;
-        tbody.appendChild(row);
-    });
-    standingsDiv.appendChild(table);
+
+        // 同位タイの処理
+        if (i > 0 && player.points === sortedPlayers[i - 1].points && player.omw === sortedPlayers[i - 1].omw && player.wins === sortedPlayers[i - 1].wins) {
+            // 前のプレイヤーと同位の場合、同じ順位番号を表示
+            row.innerHTML = `
+                <td>${currentRank}</td>
+                <td>${player.name}</td>
+                <td>${player.games}</td>
+                <td>${player.wins}</td>
+                <td>${player.losses}</td>
+            `;
+        } else {
+            // 新しい順位の場合
+            currentRank = i + 1;
+            row.innerHTML = `
+                <td>${currentRank}</td>
+                <td>${player.name}</td>
+                <td>${player.games}</td>
+                <td>${player.wins}</td>
+                <td>${player.losses}</td>
+            `;
+        }
+        tableBody.appendChild(row);
+    }
 }
 
 // ラウンドの全試合が終了したかチェック
@@ -423,5 +441,5 @@ function checkSwissRoundCompletion() {
 nextRoundButton.addEventListener('click', () => {
     // プレイヤーのmatchPlayedフラグをリセット
     swissState.players.forEach(p => p.matchPlayed = false);
-    generateNextSwissRound();
+    generateNextSwissRound(getSelectedGroup());
 });

@@ -14,6 +14,20 @@
         <div id="player-selection-list">
             <!-- 登録されたプレイヤーがここに表示されます -->
         </div>
+
+        <h2>グループ選択</h2>
+        <div id="group-selection">
+            <input type="radio" id="group-s" name="group" value="S">
+            <label for="group-s">S</label>
+            <input type="radio" id="group-a" name="group" value="A">
+            <label for="group-a">A</label>
+            <input type="radio" id="group-b" name="group" value="B">
+            <label for="group-b">B</label>
+            <input type="radio" id="group-c" name="group" value="C">
+            <label for="group-c">C</label>
+            <input type="radio" id="group-none" name="group" value="" checked>
+            <label for="group-none">なし</label>
+        </div>
         <button id="generate-swiss-button">スイスドローを生成</button>
     </div>
 
@@ -28,7 +42,20 @@
     <div class="container">
         <h2>順位表</h2>
         <div id="standings">
-            <!-- 順位表がここに表示されます -->
+            <table id="standings-table">
+                <thead>
+                    <tr>
+                        <th>順位</th>
+                        <th>プレイヤー名</th>
+                        <th>試合数</th>
+                        <th>勝利</th>
+                        <th>敗戦</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 順位表がここに表示されます -->
+                </tbody>
+            </table>
         </div>
     </div>
 
