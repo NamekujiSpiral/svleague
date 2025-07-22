@@ -9,7 +9,7 @@
 <body>
     <h1>トーナメント作成</h1>
 
-    <div class="container">
+    <div class="container" id="player-selection-container">
         <h2>参加プレイヤー選択</h2>
         <div id="player-selection-list">
             <!-- 登録されたプレイヤーがここに表示されます -->
@@ -28,10 +28,17 @@
             <input type="radio" id="group-none" name="group" value="" checked>
             <label for="group-none">なし</label>
         </div>
-        <button id="generate-tournament-button">トーナメントを生成</button>
+        <button id="generate-tournament-button">トーナメント表を作成</button>
     </div>
 
-    <div class="container">
+    <div class="container" id="match-results-container" style="display: none;">
+        <h2>結果入力</h2>
+        <div id="match-list">
+            <!-- 現在のラウンドの対戦カードがここに表示されます -->
+        </div>
+    </div>
+
+    <div class="container" id="tournament-bracket-container" style="display: none;">
         <h2>トーナメント表</h2>
         <div id="tournament-bracket">
             <!-- トーナメント表がここに表示されます -->
