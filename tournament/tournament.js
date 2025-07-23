@@ -53,11 +53,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const selectedGroup = groupSelectionDiv.querySelector('input[name="group"]:checked').value;
+
         playerSelectionContainer.style.display = 'none';
         matchResultsContainer.style.display = 'block';
         tournamentBracketContainer.style.display = 'block';
 
-        initializeTournament(selectedPlayers);
+        initializeTournament(selectedPlayers, selectedGroup);
         renderAll();
 
         // スクロール時に線を再描画
@@ -70,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // トーナメント構造を初期化
-    function initializeTournament(players) {
+    function initializeTournament(players, group) {
         const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
         const totalPlayers = Math.pow(2, Math.ceil(Math.log2(shuffledPlayers.length)));
         const byes = totalPlayers - shuffledPlayers.length;
@@ -80,10 +82,11 @@ document.addEventListener('DOMContentLoaded', () => {
             firstRoundPlayers.splice(2*i,0,'不戦勝');
         }
 
-        tournamentState = { rounds: [], players: players };
+        tournamentState = { rounds: [], players: players, group: group };
 
         let currentPlayers = firstRoundPlayers;
         let roundIndex = 0;
+        let matchCounter = 0;
 
         while (currentPlayers.length >= 1) {
             const round = { matches: [] };
@@ -93,12 +96,15 @@ document.addEventListener('DOMContentLoaded', () => {
                  break;
             }
             for (let i = 0; i < currentPlayers.length; i += 2) {
+                matchCounter++;
                 const match = {
                     id: `r${roundIndex}m${i/2}`,
                     player1: currentPlayers[i],
                     player2: currentPlayers[i+1],
                     winner: null,
-                    roundIndex: roundIndex
+                    roundIndex: roundIndex,
+                    group: group,
+                    matchNumber: matchCounter
                 };
                 if (match.player1 === '不戦勝') match.winner = match.player2;
                 if (match.player2 === '不戦勝') match.winner = match.player1;
@@ -166,10 +172,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function createMatchInputElement(match) {
         const matchDiv = document.createElement('div');
         matchDiv.classList.add('match');
+
+        const matchInfoSpan = document.createElement('span');
+        matchInfoSpan.classList.add('match-number');
+        matchInfoSpan.textContent = `${match.group ? match.group : ''}${match.matchNumber}: `;
+
         const playersDiv = document.createElement('div');
         playersDiv.classList.add('match-players');
         playersDiv.textContent = `${match.player1} vs ${match.player2}`;
+
+        matchDiv.appendChild(matchInfoSpan);
         matchDiv.appendChild(playersDiv);
+
         const resultDiv = document.createElement('div');
         resultDiv.classList.add('match-result');
         const scoreControl1 = createScoreControl();
