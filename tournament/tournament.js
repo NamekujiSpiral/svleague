@@ -43,13 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // グループ選択の変更イベント
-    groupSelectionDiv.addEventListener('change', () => {
-        const selectedGroup = groupSelectionDiv.querySelector('input[name="group"]:checked').value;
-        const filteredPlayers = selectedGroup ? allPlayers.filter(p => p.group === selectedGroup) : allPlayers;
-        displayPlayerSelection(filteredPlayers);
-    });
-
     // トーナメント生成ボタンのクリックイベント
     generateTournamentButton.addEventListener('click', () => {
         const selectedPlayers = Array.from(playerSelectionList.querySelectorAll('input[type="checkbox"]:checked'))
