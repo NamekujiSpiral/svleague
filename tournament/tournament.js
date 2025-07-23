@@ -257,6 +257,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const matchDiv = document.createElement('div');
                 matchDiv.className = 'match';
                 matchDiv.id = match.id;
+
+                if (roundIndex !== tournamentState.rounds.length - 1) {
+                    const matchIdDiv = document.createElement('div');
+                    matchIdDiv.className = 'match-id';
+                    matchIdDiv.textContent = `${match.group ? match.group : ''}${match.matchNumber}`;
+                    matchDiv.appendChild(matchIdDiv);
+                }
+
                 if (roundIndex === tournamentState.rounds.length - 1) {
                     matchDiv.classList.add('winner-box');
                     matchDiv.appendChild(createPlayerDiv(match.winner, match.winner));
@@ -276,8 +284,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // ResizeObserverでgridのサイズ変更を監視し、線を描画
         const observer = new ResizeObserver(() => {
             drawBracketLines();
-            // 一度描画したら監視を停止（初回レイアウト時のみで良いため）
-            observer.disconnect();
         });
         observer.observe(grid);
     }
@@ -311,7 +317,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const rect2 = prevMatch2.getBoundingClientRect();
                     const rectTarget = matchElement.getBoundingClientRect();
 
-                    // getBoundingClientRectで取得した画面座標を、gridコンテナ内の相対座標に変換
                     const start1_x = rect1.right - gridRect.left + grid.scrollLeft;
                     const start1_y = rect1.top - gridRect.top + grid.scrollTop + rect1.height / 2;
                     const start2_x = rect2.right - gridRect.left + grid.scrollLeft;
@@ -327,6 +332,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     svg.appendChild(path);
                 }
             });
+        }
+
+        // 最終戦から優勝者への線を描画
+        if (tournamentState.rounds.length > 1) {
+            const finalRoundIndex = tournamentState.rounds.length - 1;
+            const semiFinalRoundIndex = finalRoundIndex - 1;
+            const finalMatch = tournamentState.rounds[finalRoundIndex].matches[0];
+            const semiFinalMatch = tournamentState.rounds[semiFinalRoundIndex].matches[0];
+
+            if (finalMatch && semiFinalMatch) {
+                const finalElement = document.getElementById(finalMatch.id);
+                const semiFinalElement = document.getElementById(semiFinalMatch.id);
+
+                if (finalElement && semiFinalElement) {
+                    const rect1 = semiFinalElement.getBoundingClientRect();
+                    const rectTarget = finalElement.getBoundingClientRect();
+
+                    const start_x = rect1.right - gridRect.left + grid.scrollLeft;
+                    const start_y = rect1.top - gridRect.top + grid.scrollTop + rect1.height / 2;
+                    const end_x = rectTarget.left - gridRect.left + grid.scrollLeft;
+                    const end_y = rectTarget.top - gridRect.top + grid.scrollTop + rectTarget.height / 2;
+
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const d = `M ${start_x} ${start_y} L ${end_x} ${end_y}`;
+                    path.setAttribute('d', d);
+                    svg.appendChild(path);
+                }
+            }
         }
     }
 });

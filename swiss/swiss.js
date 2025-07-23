@@ -381,7 +381,7 @@ function recordSwissResult(index, winnerName, loserName, scores) {
 function updateSwissStandings() {
     
 
-    // プレイヤーをポイント、OMW%、勝利数でソート
+    // プレイヤーをポイント、勝利数でソート
     const sortedPlayers = [...swissState.players].sort((a, b) => {
         // ポイントでソート
         if (b.points !== a.points) {
@@ -405,7 +405,7 @@ function updateSwissStandings() {
         const row = document.createElement('tr');
 
         // 同位タイの処理
-        if (i > 0 && player.points === sortedPlayers[i - 1].points && player.omw === sortedPlayers[i - 1].omw && player.wins === sortedPlayers[i - 1].wins) {
+        if (i > 0 && player.points === sortedPlayers[i - 1].points && player.wins === sortedPlayers[i - 1].wins) {
             // 前のプレイヤーと同位の場合、同じ順位番号を表示
             row.innerHTML = `
                 <td>${currentRank}</td>

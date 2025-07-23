@@ -526,4 +526,15 @@ body.admin-logged-in .player-actions {
     stroke-width: 2px;
 }
 
+.match-id {
+    text-align: center;
+    font-size: 0.8em;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+#tournament-bracket-container {
+    max-width: none;
+}
+
 
