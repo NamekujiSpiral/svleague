@@ -481,6 +481,8 @@ body.admin-logged-in .player-actions {
     display: flex;
     flex-direction: column;
     justify-content: center; /* プレイヤーボックスを垂直中央に */
+    position: relative;
+    padding-left: 30px;
 }
 
 .tournament-grid .player {
@@ -488,7 +490,7 @@ body.admin-logged-in .player-actions {
     border: 1px solid #ccc;
     border-radius: 4px;
     padding: 10px;
-    margin: 10px 0;
+    margin: 2px 0;
     width: 100%;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     box-sizing: border-box;
@@ -530,7 +532,11 @@ body.admin-logged-in .player-actions {
     text-align: center;
     font-size: 0.8em;
     color: #666;
-    margin-bottom: 5px;
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
 }
 
 #tournament-bracket-container {
