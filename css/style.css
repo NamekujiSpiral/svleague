@@ -67,7 +67,7 @@ h1, h2 {
     flex-grow: 1; /* 入力欄が伸びるように */
 }
 
-input[type="text"], input[type="email"], input[type="password"], select {
+input[type="text"], input[type="email"], input[type="password"], select, textarea {
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -274,17 +274,32 @@ li {
 }
 
 /* 管理者ログイン時のみ表示する要素のスタイル */
-#playerRegistrationFormContainer, .player-actions {
+#playerRegistrationFormContainer, .player-actions, #announcement-container {
     display: none; /* デフォルトで非表示 */
 }
 
 body.admin-logged-in #playerRegistrationFormContainer,
-body.admin-logged-in .player-actions {
+body.admin-logged-in .player-actions,
+body.admin-logged-in #announcement-container {
     display: block; /* 管理者ログイン時に表示 */
 }
 
 body.admin-logged-in .player-actions {
     display: flex; /* player-actionsはflexで表示 */
+}
+
+/* アナウンス生成エリアのスタイル */
+#announcement-container {
+    margin-top: 15px;
+}
+
+#announcement-output {
+    width: 100%;
+    height: 150px;
+    margin-top: 10px;
+    font-family: monospace;
+    white-space: pre;
+    background-color: #f9f9f9;
 }
 
 /* スコアコントロールのスタイル */
@@ -544,3 +559,11 @@ body.admin-logged-in .player-actions {
 }
 
 
+/* 順位表の詳細表示用スタイル */
+.details-col {
+    display: none; /* デフォルトで非表示 */
+}
+
+.show-details .details-col {
+    display: table-cell; /* .show-details が付与されたら表示 */
+}

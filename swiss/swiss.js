@@ -104,6 +104,9 @@ function generateInitialSwissRound(players, group) {
         losses: 0,
         draws: 0,
         points: 0, // 勝利1, 引き分け1, 敗北0
+        omw: 0, // OMW%
+        sop: 0, // Sum of Opponent's Points
+        aoomw: 0, // Average of Opponent's OMW
         opponents: [], // 対戦相手の履歴
         matchPlayed: false, // そのラウンドで試合をしたか
         hasBye: false,
@@ -217,8 +220,9 @@ function generateNextSwissRound(group) {
         if (!paired && unpairedPlayers.length > 0) {
             const player2 = unpairedPlayers.shift(); // 次の利用可能なプレイヤーとペアリング
             swissState.matchCounter++;
+            const matchNumber = group ? `${group}${swissState.matchCounter}` : `${swissState.matchCounter}`;
             const match = {
-                matchNumber: 300 + swissState.matchCounter,
+                matchNumber: matchNumber,
                 player1: player1.name,
                 player2: player2.name,
                 winner: null,
@@ -370,25 +374,86 @@ function recordSwissResult(index, winnerName, loserName, scores) {
         winnerPlayer.wins++;
         winnerPlayer.points += 1;
         winnerPlayer.games++;
+        winnerPlayer.opponents.push(loserName);
     }
     if (loserPlayer) {
         loserPlayer.losses++;
         loserPlayer.games++;
+        loserPlayer.opponents.push(winnerName);
     }
+}
+
+// OMW%, SoP, AoOMW などのタイブレーク指標を計算する
+function calculateTiebreakers() {
+    // まず全プレイヤーのOMW%を計算する
+    swissState.players.forEach(player => {
+        if (player.opponents.length === 0) {
+            player.omw = 0;
+            return;
+        }
+
+        let opponentWinPercentages = [];
+        player.opponents.forEach(opponentName => {
+            const opponent = swissState.players.find(p => p.name === opponentName);
+            if (opponent) {
+                const opponentWinPercentage = opponent.games > 0 ? opponent.wins / opponent.games : 0;
+                opponentWinPercentages.push(Math.max(0.33, opponentWinPercentage));
+            }
+        });
+
+        if (opponentWinPercentages.length > 0) {
+            const sum = opponentWinPercentages.reduce((a, b) => a + b, 0);
+            player.omw = sum / opponentWinPercentages.length;
+        } else {
+            player.omw = 0;
+        }
+    });
+
+    // 次に、計算済みのOMW%を使ってSoPとAoOMWを計算する
+    swissState.players.forEach(player => {
+        let totalOpponentPoints = 0;
+        let totalOpponentOmw = 0;
+        let opponentCount = 0;
+
+        player.opponents.forEach(opponentName => {
+            const opponent = swissState.players.find(p => p.name === opponentName);
+            if (opponent) {
+                totalOpponentPoints += opponent.points;
+                totalOpponentOmw += opponent.omw;
+                opponentCount++;
+            }
+        });
+
+        if (opponentCount > 0) {
+            player.sop = totalOpponentPoints;
+            player.aoomw = totalOpponentOmw / opponentCount;
+        } else {
+            player.sop = 0;
+            player.aoomw = 0;
+        }
+    });
 }
 
 // スイスドローの順位表を更新
 function updateSwissStandings() {
-    
+    calculateTiebreakers(); // すべてのタイブレーク指標を計算
 
-    // プレイヤーをポイント、勝利数でソート
+    // プレイヤーを勝利数、OMW%、SoP, AoOMWでソート
     const sortedPlayers = [...swissState.players].sort((a, b) => {
-        // ポイントでソート
-        if (b.points !== a.points) {
-            return b.points - a.points;
+        // 1. 勝利数でソート (降順)
+        if (b.wins !== a.wins) {
+            return b.wins - a.wins;
         }
-        // 勝利数でソート (降順)
-        return b.wins - a.wins;
+        // 2. OMW%でソート (降順)
+        if (b.omw !== a.omw) {
+            return b.omw - a.omw;
+        }
+        // 3. 対戦相手の勝ち点合計 (SoP) でソート (降順)
+        if (b.sop !== a.sop) {
+            return b.sop - a.sop;
+        }
+        // 4. 対戦相手のOMW%平均 (AoOMW) でソート (降順)
+        return b.aoomw - a.aoomw;
     });
 
     // 順位表を表示
@@ -405,7 +470,13 @@ function updateSwissStandings() {
         const row = document.createElement('tr');
 
         // 同位タイの処理
-        if (i > 0 && player.points === sortedPlayers[i - 1].points && player.wins === sortedPlayers[i - 1].wins) {
+        const isTie = i > 0 &&
+                      player.wins === sortedPlayers[i - 1].wins &&
+                      player.omw === sortedPlayers[i - 1].omw &&
+                      player.sop === sortedPlayers[i - 1].sop &&
+                      player.aoomw === sortedPlayers[i - 1].aoomw;
+
+        if (isTie) {
             // 前のプレイヤーと同位の場合、同じ順位番号を表示
             row.innerHTML = `
                 <td>${currentRank}</td>
@@ -413,6 +484,9 @@ function updateSwissStandings() {
                 <td>${player.games}</td>
                 <td>${player.wins}</td>
                 <td>${player.losses}</td>
+                <td class="details-col">${(player.omw * 100).toFixed(2)}%</td>
+                <td class="details-col">${player.sop}</td>
+                <td class="details-col">${(player.aoomw * 100).toFixed(2)}%</td>
             `;
         } else {
             // 新しい順位の場合
@@ -423,6 +497,9 @@ function updateSwissStandings() {
                 <td>${player.games}</td>
                 <td>${player.wins}</td>
                 <td>${player.losses}</td>
+                <td class="details-col">${(player.omw * 100).toFixed(2)}%</td>
+                <td class="details-col">${player.sop}</td>
+                <td class="details-col">${(player.aoomw * 100).toFixed(2)}%</td>
             `;
         }
         tableBody.appendChild(row);
@@ -442,4 +519,56 @@ nextRoundButton.addEventListener('click', () => {
     // プレイヤーのmatchPlayedフラグをリセット
     swissState.players.forEach(p => p.matchPlayed = false);
     generateNextSwissRound(getSelectedGroup());
+});
+
+// 詳細表示ボタンのイベントリスナー
+const toggleDetailsButton = document.getElementById('toggle-details-button');
+const standingsTable = document.getElementById('standings-table');
+
+toggleDetailsButton.addEventListener('click', () => {
+    standingsTable.classList.toggle('show-details');
+    if (standingsTable.classList.contains('show-details')) {
+        toggleDetailsButton.textContent = '詳細を隠す';
+    } else {
+        toggleDetailsButton.textContent = '詳細を表示';
+    }
+});
+
+// アナウンス生成ボタンのイベントリスナー
+const generateAnnouncementButton = document.getElementById('generate-announcement-button');
+const announcementOutput = document.getElementById('announcement-output');
+
+generateAnnouncementButton.addEventListener('click', () => {
+    let announcementText = `ラウンド${swissState.currentRound}\n`;
+    swissState.matches.forEach(match => {
+        // 不戦勝の試合はアナウンスに含めない
+        if (match.player2 !== "不戦勝") {
+            announcementText += `あいことば ${match.matchNumber} ${match.player1} vs ${match.player2}\n`;
+        }
+    });
+    announcementOutput.value = announcementText;
+});
+
+// 認証状態の変更を監視してUIを更新
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        // ログインしているユーザーが管理者かどうかを確認
+        db.collection('users').doc(user.uid).get()
+            .then((doc) => {
+                if (doc.exists && doc.data().isAdmin) {
+                    // 管理者の場合
+                    document.body.classList.add('admin-logged-in');
+                } else {
+                    // 管理者ではない場合
+                    document.body.classList.remove('admin-logged-in');
+                }
+            })
+            .catch((error) => {
+                console.error("管理者ステータスの確認エラー:", error);
+                document.body.classList.remove('admin-logged-in');
+            });
+    } else {
+        // ログアウトしている場合
+        document.body.classList.remove('admin-logged-in');
+    }
 });

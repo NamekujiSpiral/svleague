@@ -33,6 +33,10 @@
 
     <div class="container">
         <h2>現在のラウンド</h2>
+        <div id="announcement-container">
+            <button id="generate-announcement-button">アナウンスを生成</button>
+            <textarea id="announcement-output" readonly placeholder="ここにアナウンスが生成されます"></textarea>
+        </div>
         <div id="swiss-matches">
             <!-- スイスドローの試合がここに表示されます -->
         </div>
@@ -41,6 +45,7 @@
 
     <div class="container">
         <h2>順位表</h2>
+        <button id="toggle-details-button">詳細を表示</button>
         <div id="standings">
             <table id="standings-table">
                 <thead>
@@ -50,6 +55,9 @@
                         <th>試合数</th>
                         <th>勝利</th>
                         <th>敗戦</th>
+                        <th class="details-col">OMW%</th>
+                        <th class="details-col">相手勝累計</th>
+                        <th class="details-col">OOMW%</th>
                     </tr>
                 </thead>
                 <tbody>
