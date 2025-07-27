@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // トーナメント生成ボタンのクリックイベント
     generateTournamentButton.addEventListener('click', () => {
         const selectedPlayers = Array.from(playerSelectionList.querySelectorAll('input[type="checkbox"]:checked'))
-                                     .map(cb => cb.value);
+            .map(cb => cb.value);
 
         if (selectedPlayers.length < 2) {
             alert('トーナメントを作成するには、少なくとも2人のプレイヤーを選択してください。');
@@ -71,50 +71,76 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // トーナメント構造を初期化
     function initializeTournament(players, group) {
-        const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
-        const totalPlayers = Math.pow(2, Math.ceil(Math.log2(shuffledPlayers.length)));
-        const byes = totalPlayers - shuffledPlayers.length;
+        const shuffled = [...players].sort(() => Math.random() - 0.5);
+        const total = Math.pow(2, Math.ceil(Math.log2(shuffled.length)));
+        const byes = total - shuffled.length;
 
-        let firstRoundPlayers = [...shuffledPlayers];
-        for (let i = 0; i < byes; i++) {
-            firstRoundPlayers.splice(2*i,0,'不戦勝');
+        // 1) 全枠を null で初期化
+        const slots = Array(total).fill(null);
+
+        // 2) 再帰で BYE 配分
+        function distributeByes(start, end, k) {
+            // [start, end) を区間とする
+            const len = end - start;
+            if (k === 0) return;
+            if (k === len) {
+                for (let i = start; i < end; i++) slots[i] = '不戦勝';
+                return;
+            }
+            const mid = start + Math.floor(len / 2);
+            const leftByes = Math.ceil(k / 2);
+            const rightByes = k - leftByes;
+            distributeByes(start, mid, leftByes);
+            distributeByes(mid, end, rightByes);
+        }
+        distributeByes(0, total, byes);
+
+        // 3) 残り枠にプレイヤーを詰める
+        let p = 0;
+        for (let i = 0; i < total; i++) {
+            if (slots[i] === null) slots[i] = shuffled[p++];
         }
 
-        tournamentState = { rounds: [], players: players, group: group };
+        // 4) あとは通常のトーナメント構築ロジック
+        tournamentState = { rounds: [], players, group };
+        let current = slots, roundIdx = 0, matchNo = 0;
 
-        let currentPlayers = firstRoundPlayers;
-        let roundIndex = 0;
-        let matchCounter = 0;
-
-        while (currentPlayers.length >= 1) {
+        while (current.length > 1) {
             const round = { matches: [] };
-            if (currentPlayers.length === 1) { // 優勝者
-                 round.matches.push({ id: `r${roundIndex}m0`, player1: currentPlayers[0], winner: currentPlayers[0], roundIndex: roundIndex });
-                 tournamentState.rounds.push(round);
-                 break;
-            }
-            for (let i = 0; i < currentPlayers.length; i += 2) {
-                matchCounter++;
-                const match = {
-                    id: `r${roundIndex}m${i/2}`,
-                    player1: currentPlayers[i],
-                    player2: currentPlayers[i+1],
+            for (let i = 0; i < current.length; i += 2) {
+                const m = {
+                    id: `r${roundIdx}m${i / 2}`,
+                    player1: current[i],
+                    player2: current[i + 1],
                     winner: null,
-                    roundIndex: roundIndex,
-                    group: group,
-                    matchNumber: matchCounter
+                    roundIndex: roundIdx,
+                    group,
+                    matchNumber: ++matchNo
                 };
-                if (match.player1 === '不戦勝') match.winner = match.player2;
-                if (match.player2 === '不戦勝') match.winner = match.player1;
-                round.matches.push(match);
+                if (m.player1 === '不戦勝') m.winner = m.player2;
+                else if (m.player2 === '不戦勝') m.winner = m.player1;
+                round.matches.push(m);
             }
             tournamentState.rounds.push(round);
-            currentPlayers = round.matches.map(m => m.winner);
-            roundIndex++;
+            current = round.matches.map(m => m.winner);
+            roundIdx++;
+        }
+
+        // 優勝マッチ（最後に１人残った場合）
+        if (current.length === 1) {
+            tournamentState.rounds.push({
+                matches: [{
+                    id: `r${roundIdx}m0`,
+                    player1: current[0],
+                    player2: null,
+                    winner: current[0],
+                    roundIndex: roundIdx
+                }]
+            });
         }
     }
+
 
     // 全体を描画
     function renderAll() {
@@ -141,9 +167,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const finalRound = tournamentState.rounds[tournamentState.rounds.length - 1];
         const semiFinal = tournamentState.rounds[tournamentState.rounds.length - 2];
-        if(semiFinal && semiFinal.matches.length === 1 && semiFinal.matches[0].winner){
-             finalRound.matches[0].winner = semiFinal.matches[0].winner;
-             finalRound.matches[0].player1 = semiFinal.matches[0].winner;
+        if (semiFinal && semiFinal.matches.length === 1 && semiFinal.matches[0].winner) {
+            finalRound.matches[0].winner = semiFinal.matches[0].winner;
+            finalRound.matches[0].player1 = semiFinal.matches[0].winner;
         }
     }
 
