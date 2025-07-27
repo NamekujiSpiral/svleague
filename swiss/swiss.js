@@ -108,6 +108,7 @@ function generateInitialSwissRound(players, group) {
         sop: 0, // Sum of Opponent's Points
         aoomw: 0, // Average of Opponent's OMW
         opponents: [], // 対戦相手の履歴
+        wonAgainst: [], // 勝利した対戦相手の履歴
         matchPlayed: false, // そのラウンドで試合をしたか
         hasBye: false,
         games: 0 // 試合数
@@ -375,6 +376,7 @@ function recordSwissResult(index, winnerName, loserName, scores) {
         winnerPlayer.points += 1;
         winnerPlayer.games++;
         winnerPlayer.opponents.push(loserName);
+        winnerPlayer.wonAgainst.push(loserName); // 勝利した相手を記録
     }
     if (loserPlayer) {
         loserPlayer.losses++;
@@ -415,20 +417,26 @@ function calculateTiebreakers() {
         let totalOpponentOmw = 0;
         let opponentCount = 0;
 
-        player.opponents.forEach(opponentName => {
+        player.wonAgainst.forEach(opponentName => { // wonAgainst を使用
             const opponent = swissState.players.find(p => p.name === opponentName);
             if (opponent) {
                 totalOpponentPoints += opponent.points;
+            }
+        });
+
+        player.opponents.forEach(opponentName => {
+            const opponent = swissState.players.find(p => p.name === opponentName);
+            if (opponent) {
                 totalOpponentOmw += opponent.omw;
                 opponentCount++;
             }
         });
 
+        player.sop = totalOpponentPoints; // SoPを更新
+
         if (opponentCount > 0) {
-            player.sop = totalOpponentPoints;
             player.aoomw = totalOpponentOmw / opponentCount;
         } else {
-            player.sop = 0;
             player.aoomw = 0;
         }
     });
@@ -539,11 +547,14 @@ const generateAnnouncementButton = document.getElementById('generate-announcemen
 const announcementOutput = document.getElementById('announcement-output');
 
 generateAnnouncementButton.addEventListener('click', () => {
-    let announcementText = `ラウンド${swissState.currentRound}\n`;
+    let announcementText = `@大会参加者 試合を開始してください。
+    ラウンド${swissState.currentRound}
+`;
     swissState.matches.forEach(match => {
         // 不戦勝の試合はアナウンスに含めない
         if (match.player2 !== "不戦勝") {
-            announcementText += `あいことば ${match.matchNumber} ${match.player1} vs ${match.player2}\n`;
+            announcementText += `あいことば ${match.matchNumber} ${match.player1} vs ${match.player2}
+`;
         }
     });
     announcementOutput.value = announcementText;
