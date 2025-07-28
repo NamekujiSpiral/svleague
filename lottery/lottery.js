@@ -4,21 +4,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const winnerDisplay = document.getElementById('winner-display');
     const winnerName = document.getElementById('winner-name');
 
-    // Firestoreからプレイヤーを読み込む
-    db.collection('players').get().then(querySnapshot => {
-        querySnapshot.forEach(doc => {
-            const player = doc.data();
-            const playerId = doc.id;
+    db.collection('players').orderBy('name', 'asc').get().then(querySnapshot => {
+        const allPlayers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        allPlayers.forEach(player => {
+            const playerId = player.id;
 
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.id = playerId;
-            checkbox.value = player.name;
+            checkbox.value = JSON.stringify(player); // プレイヤーオブジェクトを文字列化して格納
             checkbox.dataset.id = playerId;
 
             const label = document.createElement('label');
             label.htmlFor = playerId;
-            label.textContent = player.name;
+            label.textContent = `[${player.rank || 'None'}] ${player.name}`;
 
             const div = document.createElement('div');
             div.appendChild(checkbox);
@@ -28,7 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     pickWinnerButton.addEventListener('click', () => {
-        const selectedPlayers = Array.from(playerSelectionList.querySelectorAll('input[type="checkbox"]:checked'));
+        const selectedCheckboxes = Array.from(playerSelectionList.querySelectorAll('input[type="checkbox"]:checked'));
+        const selectedPlayers = selectedCheckboxes.map(cb => JSON.parse(cb.value));
 
         if (selectedPlayers.length < 2) {
             alert('プレイヤーを2人以上選択してください。');
@@ -47,19 +48,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const interval = 30;   // 30ミリ秒ごとに名前を切り替え
 
         const animation = setInterval(() => {
-            const randomPlayer = selectedPlayers[Math.floor(Math.random() * selectedPlayers.length)];
-            winnerName.textContent = randomPlayer.value;
-            winnerDisplay.style.display = 'block';
-        }, interval);
+                const randomPlayer = selectedPlayers[Math.floor(Math.random() * selectedPlayers.length)];
+                winnerName.textContent = randomPlayer.name;
+                winnerDisplay.style.display = 'block';
+            }, interval);
 
-        setTimeout(() => {
-            clearInterval(animation);
-            const finalWinner = selectedPlayers[Math.floor(Math.random() * selectedPlayers.length)];
-            winnerName.textContent = finalWinner.value;
-            resultPrefix.style.visibility = 'visible';
-            winnerDisplay.classList.remove('winner-animation');
-            winnerDisplay.classList.add('winner');
-            pickWinnerButton.disabled = false;
-        }, duration);
+            setTimeout(() => {
+                clearInterval(animation);
+                const finalWinner = selectedPlayers[Math.floor(Math.random() * selectedPlayers.length)];
+                winnerName.textContent = finalWinner.name;
+                resultPrefix.style.visibility = 'visible';
+                winnerDisplay.classList.remove('winner-animation');
+                winnerDisplay.classList.add('winner');
+                pickWinnerButton.disabled = false;
+            }, duration);
     });
 });

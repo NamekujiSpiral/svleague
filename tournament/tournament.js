@@ -17,10 +17,36 @@ document.addEventListener('DOMContentLoaded', () => {
         .then((snapshot) => {
             allPlayers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             displayPlayerSelection(allPlayers);
+            // 初期表示時に「すべて」のプレイヤーをチェック
+            filterPlayersByGroup('all');
         })
         .catch(error => {
             console.error("プレイヤーの読み込みエラー:", error);
         });
+
+    // グループ選択の変更を監視
+    groupSelectionDiv.addEventListener('change', (event) => {
+        if (event.target.name === 'group') {
+            filterPlayersByGroup(event.target.value);
+        }
+    });
+
+    // グループに基づいてプレイヤーをフィルタリングし、チェックボックスの状態を更新する関数
+    function filterPlayersByGroup(selectedGroup) {
+        const checkboxes = playerSelectionList.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            const player = allPlayers.find(p => p.id === checkbox.value);
+            if (player) {
+                if (selectedGroup === 'all') {
+                    checkbox.checked = true;
+                } else if (player.rank === selectedGroup) {
+                    checkbox.checked = true;
+                } else {
+                    checkbox.checked = false;
+                }
+            }
+        });
+    }
 
     // プレイヤー選択リストの表示
     function displayPlayerSelection(players) {
@@ -29,12 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.id = player.id;
-            checkbox.value = player.name;
+            checkbox.value = player.id; // IDを値として使用
             checkbox.checked = true;
 
             const label = document.createElement('label');
             label.htmlFor = player.id;
-            label.textContent = player.name;
+            label.textContent = `[${player.rank || 'None'}] ${player.name}`;
 
             const div = document.createElement('div');
             div.appendChild(checkbox);
@@ -45,8 +71,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // トーナメント生成ボタンのクリックイベント
     generateTournamentButton.addEventListener('click', () => {
-        const selectedPlayers = Array.from(playerSelectionList.querySelectorAll('input[type="checkbox"]:checked'))
+        const selectedPlayerIds = Array.from(playerSelectionList.querySelectorAll('input[type="checkbox"]:checked'))
             .map(cb => cb.value);
+
+        const selectedPlayers = allPlayers.filter(p => selectedPlayerIds.includes(p.id));
 
         if (selectedPlayers.length < 2) {
             alert('トーナメントを作成するには、少なくとも2人のプレイヤーを選択してください。');
@@ -187,9 +215,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (roundHasUnfinishedMatches) break;
         }
         if (!roundHasUnfinishedMatches && tournamentState.rounds.length > 0) {
-            const winnerName = tournamentState.rounds[tournamentState.rounds.length - 1].matches[0].winner;
-            if (winnerName) {
-                matchListDiv.innerHTML = `<div class="winner"><h3>優勝: ${winnerName}</h3></div>`;
+            const winner = tournamentState.rounds[tournamentState.rounds.length - 1].matches[0].winner;
+            if (winner) {
+                matchListDiv.innerHTML = `<div class="winner"><h3>優勝: ${winner.name}</h3></div>`;
             }
         }
     }
@@ -201,11 +229,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const matchInfoSpan = document.createElement('span');
         matchInfoSpan.classList.add('match-number');
-        matchInfoSpan.textContent = `${match.group ? match.group : ''}${match.matchNumber}: `;
+        matchInfoSpan.textContent = (match.group && match.group !== 'all') ? `${match.group}${match.matchNumber}: ` : `${match.matchNumber}: `;
 
         const playersDiv = document.createElement('div');
         playersDiv.classList.add('match-players');
-        playersDiv.textContent = `${match.player1} vs ${match.player2}`;
+        const player1Display = match.player1 === '不戦勝' ? '不戦勝' : match.player1.name;
+        const player2Display = match.player2 === '不戦勝' ? '不戦勝' : match.player2.name;
+        playersDiv.textContent = `${player1Display} vs ${player2Display}`;
 
         matchDiv.appendChild(matchInfoSpan);
         matchDiv.appendChild(playersDiv);
@@ -258,16 +288,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // プレイヤー要素を作成
-    function createPlayerDiv(playerName, winnerName) {
+    function createPlayerDiv(player, winner) {
         const playerDiv = document.createElement('div');
         playerDiv.className = 'player';
-        if (playerName) {
-            playerDiv.textContent = playerName;
+        if (player) {
+            if (typeof player === 'string') { // "不戦勝"の場合
+                playerDiv.textContent = player;
+            } else {
+                playerDiv.textContent = player.name;
+            }
         } else {
             playerDiv.innerHTML = '&nbsp;'; // プレースホルダー
         }
-        if (playerName === '不戦勝') playerDiv.classList.add('bye');
-        if (playerName && playerName === winnerName) playerDiv.classList.add('winner');
+
+        if (player === '不戦勝') playerDiv.classList.add('bye');
+        if (player && winner && (player.name === winner.name)) playerDiv.classList.add('winner');
         return playerDiv;
     }
 
@@ -287,8 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (roundIndex !== tournamentState.rounds.length - 1) {
                     const matchIdDiv = document.createElement('div');
                     matchIdDiv.className = 'match-id';
-                    matchIdDiv.textContent = `${match.group ? match.group : ''}${match.matchNumber}`;
-                    matchDiv.appendChild(matchIdDiv);
+                    matchIdDiv.textContent = (match.group && match.group !== 'all') ? `${match.group}${match.matchNumber}` : `${match.matchNumber}`;
+                    matchDiv.appendChild(matchIdDiv); // ここで追加
                 }
 
                 if (roundIndex === tournamentState.rounds.length - 1) {

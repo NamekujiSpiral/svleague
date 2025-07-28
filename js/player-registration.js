@@ -3,6 +3,10 @@ const registerButton = document.getElementById('registerButton');
 const playerNameInput = document.getElementById('playerName');
 const playerRankSelect = document.getElementById('playerRank');
 const playerList = document.getElementById('playerList');
+const sortPlayersButton = document.getElementById('sortPlayersButton');
+
+let currentSortMode = 'timestamp'; // 'timestamp' or 'rank'
+let playersCache = []; // プレイヤーデータをキャッシュする配列
 
 // 登録ボタンのクリックイベント
 registerButton.addEventListener('click', () => {
@@ -24,16 +28,51 @@ registerButton.addEventListener('click', () => {
     }
 });
 
+// 並べ替えボタンのクリックイベント
+sortPlayersButton.addEventListener('click', () => {
+    if (currentSortMode === 'timestamp') {
+        currentSortMode = 'rank';
+        sortPlayersButton.textContent = '登録順に並べ替え';
+    } else {
+        currentSortMode = 'timestamp';
+        sortPlayersButton.textContent = 'ランク順に並べ替え';
+    }
+    renderPlayerList(); // リストを再描画
+});
+
 // Firestoreからプレイヤーをリアルタイムで取得して表示
 db.collection('players').orderBy('timestamp', 'desc')
     .onSnapshot((snapshot) => {
-        playerList.innerHTML = ''; // リストをクリア
-        snapshot.forEach((doc) => {
-            const player = doc.data();
-            const li = createPlayerListItem(doc.id, player);
-            playerList.appendChild(li);
-        });
+        playersCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderPlayerList();
     });
+
+// プレイヤーリストを描画する関数
+function renderPlayerList() {
+    playerList.innerHTML = ''; // リストをクリア
+
+    let sortedPlayers = [...playersCache];
+
+    if (currentSortMode === 'rank') {
+        const rankOrder = { 'S': 0, 'A': 1, 'B': 2, 'C': 3, 'None': 4 };
+        sortedPlayers.sort((a, b) => {
+            const rankA = rankOrder[a.rank || 'None'];
+            const rankB = rankOrder[b.rank || 'None'];
+            if (rankA !== rankB) {
+                return rankA - rankB;
+            }
+            // ランクが同じ場合は元の登録順（タイムスタンプ）を維持
+            return b.timestamp - a.timestamp;
+        });
+    } else {
+        // タイムスタンプ順（降順）はキャッシュの時点ですでにソートされている
+    }
+
+    sortedPlayers.forEach(player => {
+        const li = createPlayerListItem(player.id, player);
+        playerList.appendChild(li);
+    });
+}
 
 // プレイヤーリストの各項目を生成する関数
 function createPlayerListItem(id, player) {

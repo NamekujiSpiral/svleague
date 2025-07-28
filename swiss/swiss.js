@@ -19,10 +19,36 @@ db.collection('players').orderBy('name', 'asc').get()
     .then((snapshot) => {
         allPlayers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         displayPlayerSelection(allPlayers);
+        // 初期表示時に「すべて」のプレイヤーをチェック
+        filterPlayersByGroup('all');
     })
     .catch(error => {
         console.error("プレイヤーの読み込みエラー:", error);
     });
+
+// グループ選択の変更を監視
+groupSelectionDiv.addEventListener('change', (event) => {
+    if (event.target.name === 'group') {
+        filterPlayersByGroup(event.target.value);
+    }
+});
+
+// グループに基づいてプレイヤーをフィルタリングし、チェックボックスの状態を更新する関数
+function filterPlayersByGroup(selectedGroup) {
+    const checkboxes = playerSelectionList.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        const player = allPlayers.find(p => p.id === checkbox.value);
+        if (player) {
+            if (selectedGroup === 'all') {
+                checkbox.checked = true;
+            } else if (player.rank === selectedGroup) {
+                checkbox.checked = true;
+            } else {
+                checkbox.checked = false;
+            }
+        }
+    });
+}
 
 // プレイヤー選択リストの表示
 function displayPlayerSelection(players) {
@@ -38,12 +64,12 @@ function displayPlayerSelection(players) {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.id = player.id;
-        checkbox.value = player.name;
+        checkbox.value = player.id; // IDを値として使用
         checkbox.checked = true;
 
         const label = document.createElement('label');
         label.htmlFor = player.id;
-        label.textContent = player.name;
+        label.textContent = `[${player.rank || 'None'}] ${player.name}`;
 
         const div = document.createElement('div');
         div.appendChild(checkbox);
@@ -54,12 +80,13 @@ function displayPlayerSelection(players) {
 
 // 選択されたプレイヤーを取得
 function getSelectedPlayers() {
-    const selected = [];
+    const selectedIds = [];
     const checkboxes = playerSelectionList.querySelectorAll('input[type="checkbox"]:checked');
     checkboxes.forEach(checkbox => {
-        selected.push(checkbox.value);
+        selectedIds.push(checkbox.value);
     });
-    return selected;
+    // allPlayersから選択されたIDに一致する完全なプレイヤーオブジェクトを返す
+    return allPlayers.filter(player => selectedIds.includes(player.id));
 }
 
 // 選択されたグループを取得
@@ -91,15 +118,15 @@ generateSwissButton.addEventListener('click', () => {
 });
 
 // Helper to check if player1 has already played player2
-function hasPlayed(player1Obj, player2Name) {
-    return player1Obj.opponents.includes(player2Name);
+function hasPlayed(player1Obj, player2Obj) {
+    return player1Obj.opponents.includes(player2Obj.name);
 }
 
 // 初回スイスドローラウンドの生成
-function generateInitialSwissRound(players, group) {
+function generateInitialSwissRound(selectedPlayers, group) {
     // プレイヤーの状態を初期化
-    swissState.players = players.map(name => ({
-        name: name,
+    swissState.players = selectedPlayers.map(player => ({
+        ...player, // name, rank, id などをすべてコピー
         wins: 0,
         losses: 0,
         draws: 0,
@@ -119,7 +146,7 @@ function generateInitialSwissRound(players, group) {
     // 最大ラウンド数を設定 (例: 参加者数に応じて調整)
     // ここでは仮に、参加者数4人なら3ラウンド、8人なら4ラウンド、16人なら5ラウンドなど
     // Math.ceil(Math.log2(players.length)) + 1; // 参加者数が多い場合にラウンド数を増やす
-    swissState.maxRounds = Math.max(3, Math.ceil(Math.log2(players.length)) + 1); // 最低3ラウンド
+    swissState.maxRounds = Math.max(3, Math.ceil(Math.log2(selectedPlayers.length)) + 2); // 最低3ラウンド
 
     generateNextSwissRound(group);
 }
@@ -173,7 +200,7 @@ function generateNextSwissRound(group) {
             // console.log(`${byePlayer.name} が不戦勝です。`); // デバッグログ削除
             // 不戦勝の試合も表示したい場合は、matchオブジェクトを作成してcurrentRoundMatchesに追加
             swissState.matchCounter++;
-            const matchNumber = group ? `${group}${swissState.matchCounter}` : `${swissState.matchCounter}`;
+            const matchNumber = (group && group !== 'all') ? `${group}${swissState.matchCounter}` : `${swissState.matchCounter}`;
             currentRoundMatches.push({
                 matchNumber: matchNumber,
                 player1: byePlayer.name,
@@ -195,9 +222,9 @@ function generateNextSwissRound(group) {
         for (let i = 0; i < unpairedPlayers.length; i++) {
             const player2 = unpairedPlayers[i];
 
-            if (!hasPlayed(player1, player2.name) && !hasPlayed(player2, player1.name)) {
+            if (!hasPlayed(player1, player2) && !hasPlayed(player2, player1)) {
                 swissState.matchCounter++;
-                const matchNumber = group ? `${group}${swissState.matchCounter}` : `${swissState.matchCounter}`;
+                const matchNumber = (group && group !== 'all') ? `${group}${swissState.matchCounter}` : `${swissState.matchCounter}`;
                 const match = {
                     matchNumber: matchNumber,
                     player1: player1.name,
@@ -221,7 +248,7 @@ function generateNextSwissRound(group) {
         if (!paired && unpairedPlayers.length > 0) {
             const player2 = unpairedPlayers.shift(); // 次の利用可能なプレイヤーとペアリング
             swissState.matchCounter++;
-            const matchNumber = group ? `${group}${swissState.matchCounter}` : `${swissState.matchCounter}`;
+            const matchNumber = (group && group !== 'all') ? `${group}${swissState.matchCounter}` : `${swissState.matchCounter}`;
             const match = {
                 matchNumber: matchNumber,
                 player1: player1.name,
@@ -274,7 +301,13 @@ function createSwissMatchElement(match, index) {
     playersDiv.appendChild(matchNumberSpan);
 
     const playerNamesSpan = document.createElement('span');
-    playerNamesSpan.textContent = `${match.player1} vs ${match.player2}`;
+    const player1Obj = swissState.players.find(p => p.name === match.player1);
+    const player2Obj = swissState.players.find(p => p.name === match.player2);
+
+    const player1Display = match.player1;
+    const player2Display = match.player2;
+
+    playerNamesSpan.textContent = `${player1Display} vs ${player2Display}`;
     playersDiv.appendChild(playerNamesSpan);
 
     const resultDiv = document.createElement('div');
@@ -553,8 +586,7 @@ generateAnnouncementButton.addEventListener('click', () => {
     swissState.matches.forEach(match => {
         // 不戦勝の試合はアナウンスに含めない
         if (match.player2 !== "不戦勝") {
-            announcementText += `あいことば ${match.matchNumber} ${match.player1} vs ${match.player2}
-`;
+            announcementText += `あいことば ${match.matchNumber} ${match.player1} vs ${match.player2}\n`;
         }
     });
     announcementOutput.value = announcementText;

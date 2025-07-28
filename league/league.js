@@ -16,10 +16,36 @@ db.collection('players').orderBy('name', 'asc').get()
     .then((snapshot) => {
         allPlayers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         displayPlayerSelection(allPlayers);
+        // 初期表示時に「すべて」のプレイヤーをチェック
+        filterPlayersByGroup('all');
     })
     .catch(error => {
         console.error("プレイヤーの読み込みエラー:", error);
     });
+
+// グループ選択の変更を監視
+groupSelectionDiv.addEventListener('change', (event) => {
+    if (event.target.name === 'group') {
+        filterPlayersByGroup(event.target.value);
+    }
+});
+
+// グループに基づいてプレイヤーをフィルタリングし、チェックボックスの状態を更新する関数
+function filterPlayersByGroup(selectedGroup) {
+    const checkboxes = playerSelectionList.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        const player = allPlayers.find(p => p.id === checkbox.value);
+        if (player) {
+            if (selectedGroup === 'all') {
+                checkbox.checked = true;
+            } else if (player.rank === selectedGroup) {
+                checkbox.checked = true;
+            } else {
+                checkbox.checked = false;
+            }
+        }
+    });
+}
 
 // プレイヤー選択リストの表示
 function displayPlayerSelection(players) {
@@ -28,12 +54,12 @@ function displayPlayerSelection(players) {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.id = player.id;
-        checkbox.value = player.name;
+        checkbox.value = player.id; // IDを値として使用
         checkbox.checked = true;
 
         const label = document.createElement('label');
         label.htmlFor = player.id;
-        label.textContent = player.name;
+        label.textContent = `[${player.rank || 'None'}] ${player.name}`;
 
         const div = document.createElement('div');
         div.appendChild(checkbox);
@@ -44,12 +70,13 @@ function displayPlayerSelection(players) {
 
 // 選択されたプレイヤーを取得
 function getSelectedPlayers() {
-    const selected = [];
+    const selectedIds = [];
     const checkboxes = playerSelectionList.querySelectorAll('input[type="checkbox"]:checked');
     checkboxes.forEach(checkbox => {
-        selected.push(checkbox.value);
+        selectedIds.push(checkbox.value);
     });
-    return selected;
+    // allPlayersから選択されたIDに一致する完全なプレイヤーオブジェクトを返す
+    return allPlayers.filter(player => selectedIds.includes(player.id));
 }
 
 // 選択されたグループを取得
@@ -80,11 +107,11 @@ function generateLeagueMatches(players, group) {
     for (let i = 0; i < players.length; i++) {
         for (let j = i + 1; j < players.length; j++) {
             leagueState.matchCounter++; // マッチ番号をインクリメント
-            const matchNumber = group ? `${group}${leagueState.matchCounter}` : `${leagueState.matchCounter}`;
+            const matchNumber = (group && group !== 'all') ? `${group}${leagueState.matchCounter}` : `${leagueState.matchCounter}`;
             leagueState.matches.push({
                 matchNumber: matchNumber,
-                player1: players[i],
-                player2: players[j],
+                player1: players[i], // プレイヤーオブジェクト全体を格納
+                player2: players[j], // プレイヤーオブジェクト全体を格納
                 winner: null,
                 scores: { player1: 0, player2: 0 },
                 finished: false
@@ -122,7 +149,10 @@ function createLeagueMatchElement(match, index) {
     playersDiv.appendChild(matchNumberSpan);
 
     const playerNamesSpan = document.createElement('span');
-    playerNamesSpan.textContent = `${match.player1} vs ${match.player2}`;
+    const player1Display = match.player1.name;
+    const player2Display = match.player2.name;
+
+    playerNamesSpan.textContent = `${player1Display} vs ${player2Display}`;
     playersDiv.appendChild(playerNamesSpan);
 
     const resultDiv = document.createElement('div');
@@ -183,7 +213,7 @@ function createLeagueMatchElement(match, index) {
             }
             const winner = score1 > score2 ? match.player1 : match.player2;
             const loser = score1 > score2 ? match.player2 : match.player1;
-            recordLeagueResult(index, winner, loser, { player1: score1, player2: score2 });
+            recordLeagueResult(index, winner.name, loser.name, { player1: score1, player2: score2 });
             displayLeagueMatches(); // UIを更新
             updateStandings(); // 順位表を更新
         };
@@ -216,7 +246,7 @@ function updateStandings() {
 
     // 全プレイヤーを初期化
     getSelectedPlayers().forEach(player => {
-        playerStats[player] = { games: 0, wins: 0, losses: 0, scoreDiff: 0 };
+        playerStats[player.name] = { games: 0, wins: 0, losses: 0, scoreDiff: 0, rank: player.rank || 'None' };
     });
 
     // 試合結果に基づいて統計を更新
