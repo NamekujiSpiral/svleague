@@ -19,6 +19,23 @@ let leagueState = {
 db.collection('players').orderBy('name', 'asc').get()
     .then((snapshot) => {
         allPlayers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // ランクの順序を定義
+        const rankOrder = { 'S': 1, 'A': 2, 'B': 3, 'C': 4, 'None': 99 };
+
+        // ランク順 > 名前順でソート
+        allPlayers.sort((a, b) => {
+            const rankA = a.rank || 'None';
+            const rankB = b.rank || 'None';
+            const valueA = rankOrder[rankA] || 99;
+            const valueB = rankOrder[rankB] || 99;
+
+            if (valueA !== valueB) {
+                return valueA - valueB;
+            }
+            return a.name.localeCompare(b.name);
+        });
+
         displayPlayerSelection(allPlayers);
         filterPlayersByGroup('all');
     })
@@ -298,17 +315,21 @@ function updateStandings(players) {
 }
 
 generateAnnouncementButton.addEventListener('click', () => {
-    let announcementText = `@大会参加者 試合を開始してください。
-`;
+    let announcementText = '@大会参加者 全ラウンドの試合組み合わせです.\n';
     let currentRound = 0;
+
     leagueState.matches.forEach(match => {
+        // 新しいラウンドのヘッダーを追加
         if (match.round !== currentRound) {
             currentRound = match.round;
             announcementText += `\n--- ラウンド ${currentRound} ---\n`;
         }
+        // 試合情報を追加
         announcementText += `あいことば ${match.matchNumber} ${match.player1.name} vs ${match.player2.name}\n`;
     });
-    announcementOutput.value = announcementText;
+
+    // 末尾の余分な改行を削除
+    announcementOutput.value = announcementText.trim();
 });
 
 firebase.auth().onAuthStateChanged((user) => {
