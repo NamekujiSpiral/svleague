@@ -3,20 +3,23 @@ const generateLeagueButton = document.getElementById('generate-league-button');
 const leagueMatchesDiv = document.getElementById('league-matches');
 const standingsDiv = document.getElementById('standings');
 const groupSelectionDiv = document.getElementById('group-selection');
+const generateAnnouncementButton = document.getElementById('generate-announcement-button');
+const announcementOutput = document.getElementById('announcement-output');
+const adminControls = document.querySelector('.admin-controls');
 
 let allPlayers = [];
 let leagueState = {
     matches: [],
     results: {},
-    matchCounter: 0 // リーグ戦内のマッチカウンター
+    matchCounter: 0,
+    group: ''
 };
 
-// Firestoreからプレイヤーを取得して選択リストを表示
+// Firestoreからプレイヤーを取得
 db.collection('players').orderBy('name', 'asc').get()
     .then((snapshot) => {
         allPlayers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         displayPlayerSelection(allPlayers);
-        // 初期表示時に「すべて」のプレイヤーをチェック
         filterPlayersByGroup('all');
     })
     .catch(error => {
@@ -30,31 +33,23 @@ groupSelectionDiv.addEventListener('change', (event) => {
     }
 });
 
-// グループに基づいてプレイヤーをフィルタリングし、チェックボックスの状態を更新する関数
 function filterPlayersByGroup(selectedGroup) {
     const checkboxes = playerSelectionList.querySelectorAll('input[type="checkbox"]');
     checkboxes.forEach(checkbox => {
         const player = allPlayers.find(p => p.id === checkbox.value);
         if (player) {
-            if (selectedGroup === 'all') {
-                checkbox.checked = true;
-            } else if (player.rank === selectedGroup) {
-                checkbox.checked = true;
-            } else {
-                checkbox.checked = false;
-            }
+            checkbox.checked = selectedGroup === 'all' || player.rank === selectedGroup;
         }
     });
 }
 
-// プレイヤー選択リストの表示
 function displayPlayerSelection(players) {
     playerSelectionList.innerHTML = '';
     players.forEach(player => {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.id = player.id;
-        checkbox.value = player.id; // IDを値として使用
+        checkbox.value = player.id;
         checkbox.checked = true;
 
         const label = document.createElement('label');
@@ -68,70 +63,93 @@ function displayPlayerSelection(players) {
     });
 }
 
-// 選択されたプレイヤーを取得
 function getSelectedPlayers() {
-    const selectedIds = [];
-    const checkboxes = playerSelectionList.querySelectorAll('input[type="checkbox"]:checked');
-    checkboxes.forEach(checkbox => {
-        selectedIds.push(checkbox.value);
-    });
-    // allPlayersから選択されたIDに一致する完全なプレイヤーオブジェクトを返す
+    const selectedIds = Array.from(playerSelectionList.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
     return allPlayers.filter(player => selectedIds.includes(player.id));
 }
 
-// 選択されたグループを取得
 function getSelectedGroup() {
     const selectedRadio = groupSelectionDiv.querySelector('input[name="group"]:checked');
     return selectedRadio ? selectedRadio.value : '';
 }
 
-// リーグ戦生成ボタンのクリックイベント
 generateLeagueButton.addEventListener('click', () => {
     const selectedPlayers = getSelectedPlayers();
     if (selectedPlayers.length < 2) {
         alert('リーグ戦を作成するには、少なくとも2人のプレイヤーを選択してください。');
         return;
     }
-    // プレイヤー選択エリアとグループ選択エリアを非表示にする
     document.getElementById('player-selection-list').parentElement.style.display = 'none';
     groupSelectionDiv.style.display = 'none';
+    generateLeagueButton.style.display = 'none';
     generateLeagueMatches(selectedPlayers, getSelectedGroup());
 });
 
-// リーグ戦の組み合わせを生成
 function generateLeagueMatches(players, group) {
-    leagueState.matches = [];
-    // リーグ戦内のマッチカウンターをリセット
-    leagueState.matchCounter = 0;
-
-    for (let i = 0; i < players.length; i++) {
-        for (let j = i + 1; j < players.length; j++) {
-            leagueState.matchCounter++; // マッチ番号をインクリメント
-            const matchNumber = (group && group !== 'all') ? `${group}${leagueState.matchCounter}` : `${leagueState.matchCounter}`;
-            leagueState.matches.push({
-                matchNumber: matchNumber,
-                player1: players[i], // プレイヤーオブジェクト全体を格納
-                player2: players[j], // プレイヤーオブジェクト全体を格納
-                winner: null,
-                scores: { player1: 0, player2: 0 },
-                finished: false
-            });
-        }
-    }
+    leagueState.group = group;
+    leagueState.matches = generateAllRoundRobinMatches(players);
     displayLeagueMatches();
-    updateStandings();
+    updateStandings(players);
 }
 
-// リーグ戦の試合を表示
+function generateAllRoundRobinMatches(players) {
+    const allMatches = [];
+    let matchCounter = 0;
+
+    let participants = [...players];
+    // プレイヤーが奇数の場合、ダミーの「不戦勝」プレイヤーを追加
+    if (participants.length % 2 !== 0) {
+        participants.push({ name: "BYE", id: "BYE" });
+    }
+
+    const numRounds = participants.length - 1;
+    const halfSize = participants.length / 2;
+
+    for (let round = 0; round < numRounds; round++) {
+        for (let i = 0; i < halfSize; i++) {
+            const player1 = participants[i];
+            const player2 = participants[participants.length - 1 - i];
+
+            // 不戦勝のマッチは含めない
+            if (player1.name !== "BYE" && player2.name !== "BYE") {
+                matchCounter++;
+                const matchNumber = (leagueState.group && leagueState.group !== 'all') ? `${leagueState.group}${matchCounter}` : `${matchCounter}`;
+                allMatches.push({
+                    round: round + 1,
+                    matchNumber: matchNumber,
+                    player1: player1,
+                    player2: player2,
+                    winner: null,
+                    scores: { player1: 0, player2: 0 },
+                    finished: false
+                });
+            }
+        }
+
+        // プレイヤーをローテーション（最初の一人は固定）
+        const lastPlayer = participants.pop();
+        participants.splice(1, 0, lastPlayer);
+    }
+
+    return allMatches;
+}
+
 function displayLeagueMatches() {
     leagueMatchesDiv.innerHTML = '';
+    let currentRound = 0;
+
     leagueState.matches.forEach((match, index) => {
+        if (match.round !== currentRound) {
+            currentRound = match.round;
+            const roundHeader = document.createElement('h3');
+            roundHeader.textContent = `ラウンド ${currentRound}`;
+            leagueMatchesDiv.appendChild(roundHeader);
+        }
         const matchDiv = createLeagueMatchElement(match, index);
         leagueMatchesDiv.appendChild(matchDiv);
     });
 }
 
-// リーグ戦の試合要素を作成
 function createLeagueMatchElement(match, index) {
     const matchDiv = document.createElement('div');
     matchDiv.classList.add('match');
@@ -142,80 +160,39 @@ function createLeagueMatchElement(match, index) {
     const playersDiv = document.createElement('div');
     playersDiv.classList.add('match-players');
 
-    // マッチ番号を表示
     const matchNumberSpan = document.createElement('span');
     matchNumberSpan.classList.add('match-number');
-    matchNumberSpan.textContent = `${match.matchNumber}: `; // #を削除
+    matchNumberSpan.textContent = `${match.matchNumber}: `;
     playersDiv.appendChild(matchNumberSpan);
 
     const playerNamesSpan = document.createElement('span');
-    const player1Display = match.player1.name;
-    const player2Display = match.player2.name;
-
-    playerNamesSpan.textContent = `${player1Display} vs ${player2Display}`;
+    playerNamesSpan.textContent = `${match.player1.name} vs ${match.player2.name}`;
     playersDiv.appendChild(playerNamesSpan);
 
     const resultDiv = document.createElement('div');
     resultDiv.classList.add('match-result');
 
     if (!match.finished) {
-        // スコアコントロールコンテナ
-        const scoreControl1 = document.createElement('div');
-        scoreControl1.classList.add('score-control');
-        const minusBtn1 = document.createElement('button');
-        minusBtn1.textContent = '-';
-        minusBtn1.classList.add('score-btn');
-        const score1Input = document.createElement('input');
-        score1Input.type = 'number';
-        score1Input.min = 0;
-        score1Input.value = 0;
-        score1Input.classList.add('score-input');
-        const plusBtn1 = document.createElement('button');
-        plusBtn1.textContent = '+';
-        plusBtn1.classList.add('score-btn');
-
-        minusBtn1.onclick = () => { score1Input.value = Math.max(0, parseInt(score1Input.value) - 1); };
-        plusBtn1.onclick = () => { score1Input.value = parseInt(score1Input.value) + 1; };
-
-        scoreControl1.appendChild(minusBtn1);
-        scoreControl1.appendChild(score1Input);
-        scoreControl1.appendChild(plusBtn1);
-
-        const scoreControl2 = document.createElement('div');
-        scoreControl2.classList.add('score-control');
-        const minusBtn2 = document.createElement('button');
-        minusBtn2.textContent = '-';
-        minusBtn2.classList.add('score-btn');
-        const score2Input = document.createElement('input');
-        score2Input.type = 'number';
-        score2Input.min = 0;
-        score2Input.value = 0;
-        score2Input.classList.add('score-input');
-        const plusBtn2 = document.createElement('button');
-        plusBtn2.textContent = '+';
-        plusBtn2.classList.add('score-btn');
-
-        minusBtn2.onclick = () => { score2Input.value = Math.max(0, parseInt(score2Input.value) - 1); };
-        plusBtn2.onclick = () => { score2Input.value = parseInt(score2Input.value) + 1; };
-
-        scoreControl2.appendChild(minusBtn2);
-        scoreControl2.appendChild(score2Input);
-        scoreControl2.appendChild(plusBtn2);
+        const scoreControl1 = createScoreControl();
+        const scoreControl2 = createScoreControl();
 
         const registerBtn = document.createElement('button');
         registerBtn.textContent = '結果登録';
         registerBtn.onclick = () => {
-            const score1 = parseInt(score1Input.value, 10);
-            const score2 = parseInt(score2Input.value, 10);
+            const score1 = parseInt(scoreControl1.querySelector('.score-input').value, 10);
+            const score2 = parseInt(scoreControl2.querySelector('.score-input').value, 10);
             if (score1 === score2) {
                 alert('引き分けはサポートされていません。勝敗を明確にしてください。');
                 return;
             }
             const winner = score1 > score2 ? match.player1 : match.player2;
             const loser = score1 > score2 ? match.player2 : match.player1;
-            recordLeagueResult(index, winner.name, loser.name, { player1: score1, player2: score2 });
-            displayLeagueMatches(); // UIを更新
-            updateStandings(); // 順位表を更新
+            recordLeagueResult(index, winner, loser, { player1: score1, player2: score2 });
+            
+            const updatedMatchDiv = createLeagueMatchElement(leagueState.matches[index], index);
+            matchDiv.parentElement.replaceChild(updatedMatchDiv, matchDiv);
+
+            updateStandings(getSelectedPlayers());
         };
 
         resultDiv.appendChild(scoreControl1);
@@ -228,71 +205,89 @@ function createLeagueMatchElement(match, index) {
 
     matchDiv.appendChild(playersDiv);
     matchDiv.appendChild(resultDiv);
-
     return matchDiv;
 }
 
-// リーグ戦の結果を記録
+function createScoreControl() {
+    const scoreControl = document.createElement('div');
+    scoreControl.classList.add('score-control');
+    const minusBtn = document.createElement('button');
+    minusBtn.textContent = '-';
+    minusBtn.classList.add('score-btn');
+    const scoreInput = document.createElement('input');
+    scoreInput.type = 'number';
+    scoreInput.min = 0;
+    scoreInput.value = 0;
+    scoreInput.classList.add('score-input');
+    const plusBtn = document.createElement('button');
+    plusBtn.textContent = '+';
+    plusBtn.classList.add('score-btn');
+
+    minusBtn.onclick = () => { scoreInput.value = Math.max(0, parseInt(scoreInput.value) - 1); };
+    plusBtn.onclick = () => { scoreInput.value = parseInt(scoreInput.value) + 1; };
+
+    scoreControl.appendChild(minusBtn);
+    scoreControl.appendChild(scoreInput);
+    scoreControl.appendChild(plusBtn);
+    return scoreControl;
+}
+
 function recordLeagueResult(index, winner, loser, scores) {
     const match = leagueState.matches[index];
-    match.winner = winner;
-    match.loser = loser;
+    match.winner = winner.name;
+    match.loser = loser.name;
     match.scores = scores;
     match.finished = true;
 }
 
-function updateStandings() {
+function updateStandings(players) {
     const playerStats = {};
 
-    // 全プレイヤーを初期化
-    getSelectedPlayers().forEach(player => {
+    players.forEach(player => {
         playerStats[player.name] = { games: 0, wins: 0, losses: 0, scoreDiff: 0, rank: player.rank || 'None' };
     });
 
-    // 試合結果に基づいて統計を更新
     leagueState.matches.forEach(match => {
         if (match.finished) {
-            playerStats[match.winner].wins++;
-            playerStats[match.winner].games++;
-            playerStats[match.loser].losses++;
-            playerStats[match.loser].games++;
+            const winnerName = match.winner;
+            const loserName = match.loser;
+            const winnerStats = playerStats[winnerName];
+            const loserStats = playerStats[loserName];
 
-            // 得失点差の計算
-            const winnerScore = match.scores.player1 > match.scores.player2 ? match.scores.player1 : match.scores.player2;
-            const loserScore = match.scores.player1 > match.scores.player2 ? match.scores.player2 : match.scores.player1;
-
-            playerStats[match.winner].scoreDiff += (winnerScore - loserScore);
-            playerStats[match.loser].scoreDiff -= (winnerScore - loserScore);
+            if (winnerStats) {
+                winnerStats.wins++;
+                winnerStats.games++;
+                const score1 = match.scores.player1;
+                const score2 = match.scores.player2;
+                winnerStats.scoreDiff += Math.abs(score1 - score2);
+            }
+            if (loserStats) {
+                loserStats.losses++;
+                loserStats.games++;
+                const score1 = match.scores.player1;
+                const score2 = match.scores.player2;
+                loserStats.scoreDiff -= Math.abs(score1 - score2);
+            }
         }
     });
 
-    // 統計をソート
     const sortedPlayers = Object.keys(playerStats).sort((a, b) => {
         const statsA = playerStats[a];
         const statsB = playerStats[b];
-
-        // 勝利数でソート
-        if (statsB.wins !== statsA.wins) {
-            return statsB.wins - statsA.wins;
-        }
-        // 得失点差でソート
-        if (statsB.scoreDiff !== statsA.scoreDiff) {
-            return statsB.scoreDiff - statsA.scoreDiff;
-        }
-        // 敗戦数でソート
+        if (statsB.wins !== statsA.wins) return statsB.wins - statsA.wins;
+        if (statsB.scoreDiff !== statsA.scoreDiff) return statsB.scoreDiff - statsA.scoreDiff;
         return statsA.losses - statsB.losses;
     });
 
-    // 順位表を表示
     const tableBody = document.querySelector('#standings-table tbody');
     tableBody.innerHTML = '';
 
-    sortedPlayers.forEach((player, index) => {
-        const stats = playerStats[player];
+    sortedPlayers.forEach((playerName, index) => {
+        const stats = playerStats[playerName];
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${index + 1}</td>
-            <td>${player}</td>
+            <td>${playerName}</td>
             <td>${stats.games}</td>
             <td>${stats.wins}</td>
             <td>${stats.losses}</td>
@@ -301,3 +296,36 @@ function updateStandings() {
         tableBody.appendChild(row);
     });
 }
+
+generateAnnouncementButton.addEventListener('click', () => {
+    let announcementText = `@大会参加者 試合を開始してください。
+`;
+    let currentRound = 0;
+    leagueState.matches.forEach(match => {
+        if (match.round !== currentRound) {
+            currentRound = match.round;
+            announcementText += `\n--- ラウンド ${currentRound} ---\n`;
+        }
+        announcementText += `あいことば ${match.matchNumber} ${match.player1.name} vs ${match.player2.name}\n`;
+    });
+    announcementOutput.value = announcementText;
+});
+
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        db.collection('users').doc(user.uid).get()
+            .then((doc) => {
+                if (doc.exists && doc.data().isAdmin) {
+                    adminControls.style.display = 'block';
+                } else {
+                    adminControls.style.display = 'none';
+                }
+            })
+            .catch((error) => {
+                console.error("管理者ステータスの確認エラー:", error);
+                adminControls.style.display = 'none';
+            });
+    } else {
+        adminControls.style.display = 'none';
+    }
+});
