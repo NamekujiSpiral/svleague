@@ -5,7 +5,7 @@ const standingsDiv = document.getElementById('standings');
 const groupSelectionDiv = document.getElementById('group-selection');
 const generateAnnouncementButton = document.getElementById('generate-announcement-button');
 const announcementOutput = document.getElementById('announcement-output');
-const adminControls = document.querySelector('.admin-controls');
+
 
 let allPlayers = [];
 let leagueState = {
@@ -315,14 +315,14 @@ function updateStandings(players) {
 }
 
 generateAnnouncementButton.addEventListener('click', () => {
-    let announcementText = '@大会参加者 全ラウンドの試合組み合わせです.\n';
+    let announcementText = '@大会参加者 試合を行ってください。\nラウンド内の試合が終われば、指示を待たず次のラウンドに進んでください。\n';
     let currentRound = 0;
 
     leagueState.matches.forEach(match => {
         // 新しいラウンドのヘッダーを追加
         if (match.round !== currentRound) {
             currentRound = match.round;
-            announcementText += `\n--- ラウンド ${currentRound} ---\n`;
+            announcementText += `\n### ラウンド ${currentRound} \n`;
         }
         // 試合情報を追加
         announcementText += `あいことば ${match.matchNumber} ${match.player1.name} vs ${match.player2.name}\n`;
@@ -337,16 +337,16 @@ firebase.auth().onAuthStateChanged((user) => {
         db.collection('users').doc(user.uid).get()
             .then((doc) => {
                 if (doc.exists && doc.data().isAdmin) {
-                    adminControls.style.display = 'block';
+                    document.body.classList.add('admin-logged-in');
                 } else {
-                    adminControls.style.display = 'none';
+                    document.body.classList.remove('admin-logged-in');
                 }
             })
             .catch((error) => {
                 console.error("管理者ステータスの確認エラー:", error);
-                adminControls.style.display = 'none';
+                document.body.classList.remove('admin-logged-in');
             });
     } else {
-        adminControls.style.display = 'none';
+        document.body.classList.remove('admin-logged-in');
     }
 });
