@@ -114,7 +114,13 @@ function generateAllRoundRobinMatches(players) {
     let matchCounter = 0;
 
     let participants = [...players];
-    participants.sort(() => Math.random() - 0.5);
+
+    // Fisher-Yates shuffle for better randomness
+    for (let i = participants.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [participants[i], participants[j]] = [participants[j], participants[i]];
+    }
+
     // プレイヤーが奇数の場合、ダミーの「不戦勝」プレイヤーを追加
     if (participants.length % 2 !== 0) {
         participants.push({ name: "BYE", id: "BYE" });
